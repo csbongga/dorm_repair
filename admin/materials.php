@@ -1,0 +1,461 @@
+<?php
+require_once 'includes/auth_check.php';
+require_once '../connect.php';
+
+// ====================================================================
+// AJAX: ดึงรายการห้องที่ใช้อุปกรณ์นี้
+// ====================================================================
+if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $itemId        = (int)($_GET['item_id'] ?? 0);
+    $filterStatus  = $_GET['status']   ?? '';
+    $filterCat     = $_GET['category'] ?? '';
+
+    if (!$itemId) {
+        echo json_encode(['rows' => [], 'total_qty' => 0]);
+        exit;
+    }
+
+    $where  = ['ri.item_master_id = ?'];
+    $params = [$itemId];
+
+    if ($filterStatus) {
+        $where[]  = 'rr.status = ?';
+        $params[] = $filterStatus;
+    }
+
+    $whereSQL = 'WHERE ' . implode(' AND ', $where);
+
+    $stmt = $pdo->prepare("
+        SELECT
+            rr.ticket_id,
+            rr.status    AS req_status,
+            ri.quantity,
+            ri.status    AS item_status,
+            r.room_number,
+            d.name       AS dorm_name,
+            DATE_FORMAT(rr.created_at, '%d/%m/%Y %H:%i') AS created_at
+        FROM repair_items ri
+        JOIN repair_requests rr ON ri.request_id  = rr.id
+        JOIN rooms r             ON rr.room_id     = r.id
+        JOIN dorms d             ON r.dorm_id      = d.id
+        $whereSQL
+        ORDER BY rr.created_at DESC
+    ");
+    $stmt->execute($params);
+    $rows      = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $totalQty  = array_sum(array_column($rows, 'quantity'));
+
+    echo json_encode(['rows' => $rows, 'total_qty' => $totalQty]);
+    exit;
+}
+
+$page_title   = 'วัสดุ / อุปกรณ์ที่ต้องใช้';
+$current_page = 'materials';
+
+// ====================================================================
+// Filters
+// ====================================================================
+$filter_status   = $_GET['status']   ?? '';   // กรองตามสถานะใบงาน
+$filter_category = $_GET['category'] ?? '';   // กรองตามหมวดอุปกรณ์
+
+$statusOptions = ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น', 'ยกเลิก'];
+$categories    = ['ประปา', 'ไฟฟ้า', 'ซ่อมสร้าง'];
+
+// ====================================================================
+// Query: สรุปรายการอุปกรณ์ที่ใช้ในใบงาน
+// ====================================================================
+$where  = [];
+$params = [];
+
+if ($filter_status) {
+    $where[]  = 'rr.status = ?';
+    $params[] = $filter_status;
+}
+if ($filter_category) {
+    $where[]  = 'rim.category = ?';
+    $params[] = $filter_category;
+}
+
+$whereSQL = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+$summaryStmt = $pdo->prepare("
+    SELECT
+        rim.id,
+        rim.item_name,
+        rim.category,
+        COUNT(DISTINCT ri.request_id)                                      AS request_count,
+        SUM(ri.quantity)                                                    AS total_qty,
+        SUM(CASE WHEN rr.status = 'รอดำเนินการ'    THEN ri.quantity ELSE 0 END) AS qty_pending,
+        SUM(CASE WHEN rr.status = 'กำลังดำเนินการ' THEN ri.quantity ELSE 0 END) AS qty_progress,
+        SUM(CASE WHEN rr.status = 'เสร็จสิ้น'      THEN ri.quantity ELSE 0 END) AS qty_done,
+        GROUP_CONCAT(
+            DISTINCT CONCAT(d.name, ' ห้อง ', r.room_number)
+            ORDER BY d.name, r.room_number
+            SEPARATOR ', '
+        ) AS rooms_summary
+    FROM repair_items_master rim
+    JOIN repair_items ri   ON rim.id         = ri.item_master_id
+    JOIN repair_requests rr ON ri.request_id = rr.id
+    JOIN rooms r            ON rr.room_id    = r.id
+    JOIN dorms d            ON r.dorm_id     = d.id
+    $whereSQL
+    GROUP BY rim.id
+    ORDER BY
+        FIELD(rim.category, 'ประปา', 'ไฟฟ้า', 'ซ่อมสร้าง'),
+        total_qty DESC
+");
+$summaryStmt->execute($params);
+$summaryItems = $summaryStmt->fetchAll();
+
+// ====================================================================
+// Stats header
+// ====================================================================
+$totalQty      = array_sum(array_column($summaryItems, 'total_qty'));
+$totalPending  = array_sum(array_column($summaryItems, 'qty_pending'));
+$totalProgress = array_sum(array_column($summaryItems, 'qty_progress'));
+$totalDone     = array_sum(array_column($summaryItems, 'qty_done'));
+$totalTypes    = count($summaryItems);
+
+$catMeta = [
+    'ประปา'    => ['emoji' => '💧', 'color' => '#3b82f6', 'bg' => '#dbeafe', 'icon' => 'bi-droplet-fill'],
+    'ไฟฟ้า'   => ['emoji' => '⚡', 'color' => '#f59e0b', 'bg' => '#fef3c7', 'icon' => 'bi-lightning-fill'],
+    'ซ่อมสร้าง' => ['emoji' => '🔨', 'color' => '#8b5cf6', 'bg' => '#ede9fe', 'icon' => 'bi-hammer'],
+];
+
+include 'includes/header.php';
+?>
+
+<div class="page-header">
+    <div>
+        <h2><i class="bi bi-box-seam-fill me-2" style="color:#06C755;"></i>วัสดุ / อุปกรณ์ที่ต้องใช้</h2>
+        <p class="page-desc">รายการอุปกรณ์จากใบงานแจ้งซ่อม — รวม <?= $totalTypes ?> ประเภท / <?= number_format($totalQty) ?> ชิ้นรวม</p>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#f0fdf4;color:#06C755;">
+                <i class="bi bi-box-seam-fill"></i>
+            </div>
+            <div class="stat-value" style="color:#06C755;"><?= number_format($totalQty) ?></div>
+            <div class="stat-label">รวมทั้งหมด (ชิ้น)</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fef3c7;color:#f59e0b;">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div class="stat-value text-warning"><?= number_format($totalPending) ?></div>
+            <div class="stat-label">รอดำเนินการ</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#dbeafe;color:#3b82f6;">
+                <i class="bi bi-gear-fill"></i>
+            </div>
+            <div class="stat-value text-primary"><?= number_format($totalProgress) ?></div>
+            <div class="stat-label">กำลังดำเนินการ</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#d1fae5;color:#059669;">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div class="stat-value text-success"><?= number_format($totalDone) ?></div>
+            <div class="stat-label">เสร็จสิ้นแล้ว</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="panel mb-4">
+    <div class="panel-body py-3">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label mb-1" style="font-size:0.82rem;font-weight:500;color:#64748b;">กรองตามสถานะใบงาน</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">ทุกสถานะ</option>
+                    <?php foreach ($statusOptions as $s): ?>
+                    <option value="<?= $s ?>" <?= $filter_status === $s ? 'selected' : '' ?>><?= $s ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label mb-1" style="font-size:0.82rem;font-weight:500;color:#64748b;">กรองตามหมวดอุปกรณ์</label>
+                <select name="category" class="form-select form-select-sm">
+                    <option value="">ทุกหมวด</option>
+                    <?php foreach ($categories as $c): ?>
+                    <option value="<?= $c ?>" <?= $filter_category === $c ? 'selected' : '' ?>>
+                        <?= $catMeta[$c]['emoji'] ?> <?= $c ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-12 col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-sm flex-fill" style="background:#06C755;color:white;border:none;border-radius:8px;">
+                    <i class="bi bi-funnel-fill me-1"></i>กรอง
+                </button>
+                <a href="materials.php" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Main Table -->
+<?php if (empty($summaryItems)): ?>
+<div class="panel">
+    <div class="panel-body text-center py-5 text-muted">
+        <i class="bi bi-inbox" style="font-size:2.5rem;display:block;margin-bottom:10px;"></i>
+        ไม่พบรายการอุปกรณ์ที่ตรงกับเงื่อนไข
+    </div>
+</div>
+<?php else: ?>
+
+<?php
+// จัดกลุ่มตาม category เพื่อแสดงเป็น section
+$grouped = [];
+foreach ($summaryItems as $item) {
+    $grouped[$item['category']][] = $item;
+}
+?>
+
+<?php foreach ($grouped as $cat => $items):
+    $meta    = $catMeta[$cat] ?? ['emoji' => '🛠️', 'color' => '#64748b', 'bg' => '#f1f5f9', 'icon' => 'bi-tools'];
+    $catQty  = array_sum(array_column($items, 'total_qty'));
+?>
+<div class="panel mb-4">
+    <!-- Category Header -->
+    <div class="panel-header" style="background:<?= $meta['bg'] ?>;">
+        <div class="d-flex align-items-center gap-2">
+            <div style="width:34px;height:34px;border-radius:9px;background:<?= $meta['color'] ?>22;display:flex;align-items:center;justify-content:center;color:<?= $meta['color'] ?>;">
+                <i class="bi <?= $meta['icon'] ?>"></i>
+            </div>
+            <span style="font-weight:700;font-size:0.95rem;color:#1e293b;"><?= $meta['emoji'] ?> <?= $cat ?></span>
+            <span class="badge ms-1" style="background:<?= $meta['color'] ?>22;color:<?= $meta['color'] ?>;font-size:0.75rem;">
+                <?= count($items) ?> ประเภท
+            </span>
+        </div>
+        <span style="font-size:0.88rem;font-weight:600;color:<?= $meta['color'] ?>;">
+            รวม <?= number_format($catQty) ?> ชิ้น
+        </span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-clean mb-0">
+            <thead>
+                <tr>
+                    <th style="padding-left:20px;width:40%;">ชื่ออุปกรณ์</th>
+                    <th class="text-center">จำนวนรวม</th>
+                    <th class="text-center">รอดำเนินการ</th>
+                    <th class="text-center">กำลังซ่อม</th>
+                    <th class="text-center">เสร็จแล้ว</th>
+                    <th class="text-center">ใบงาน</th>
+                    <th style="padding-right:20px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($items as $item): ?>
+                <tr>
+                    <td style="padding-left:20px;">
+                        <div style="font-weight:600;font-size:0.92rem;color:#1e293b;">
+                            <?= htmlspecialchars($item['item_name']) ?>
+                        </div>
+                        <!-- ห้องที่ใช้ (preview สั้น) -->
+                        <?php if ($item['rooms_summary']): ?>
+                        <div style="font-size:0.75rem;color:#94a3b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;"
+                             title="<?= htmlspecialchars($item['rooms_summary']) ?>">
+                            <i class="bi bi-geo-alt me-1"></i><?= htmlspecialchars($item['rooms_summary']) ?>
+                        </div>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-center">
+                        <span style="font-size:1.2rem;font-weight:700;color:#1e293b;"><?= number_format($item['total_qty']) ?></span>
+                        <div style="font-size:0.7rem;color:#94a3b8;">ชิ้น</div>
+                    </td>
+                    <td class="text-center">
+                        <?php if ($item['qty_pending'] > 0): ?>
+                        <span class="badge-status badge-pending" style="font-size:0.78rem;">
+                            <?= $item['qty_pending'] ?>
+                        </span>
+                        <?php else: ?>
+                        <span style="color:#cbd5e1;font-size:0.82rem;">—</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-center">
+                        <?php if ($item['qty_progress'] > 0): ?>
+                        <span class="badge-status badge-progress" style="font-size:0.78rem;">
+                            <?= $item['qty_progress'] ?>
+                        </span>
+                        <?php else: ?>
+                        <span style="color:#cbd5e1;font-size:0.82rem;">—</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-center">
+                        <?php if ($item['qty_done'] > 0): ?>
+                        <span class="badge-status badge-completed" style="font-size:0.78rem;">
+                            <?= $item['qty_done'] ?>
+                        </span>
+                        <?php else: ?>
+                        <span style="color:#cbd5e1;font-size:0.82rem;">—</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-center">
+                        <span style="font-size:0.88rem;font-weight:500;color:#475569;"><?= $item['request_count'] ?> ใบ</span>
+                    </td>
+                    <td style="padding-right:20px;">
+                        <button class="btn btn-sm"
+                                style="background:#06C755;color:white;border:none;border-radius:8px;font-size:0.78rem;white-space:nowrap;"
+                                onclick="showRooms(<?= $item['id'] ?>, '<?= htmlspecialchars($item['item_name'], ENT_QUOTES) ?>')">
+                            <i class="bi bi-geo-alt-fill me-1"></i>ดูห้อง
+                        </button>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+            <!-- Category subtotal row -->
+            <tfoot>
+                <tr style="background:#f8fafc;">
+                    <td style="padding-left:20px;font-weight:600;font-size:0.85rem;color:#475569;">รวม <?= $cat ?></td>
+                    <td class="text-center" style="font-weight:700;color:#1e293b;"><?= number_format($catQty) ?></td>
+                    <td class="text-center" style="font-weight:600;color:#d97706;"><?= number_format(array_sum(array_column($items, 'qty_pending'))) ?></td>
+                    <td class="text-center" style="font-weight:600;color:#2563eb;"><?= number_format(array_sum(array_column($items, 'qty_progress'))) ?></td>
+                    <td class="text-center" style="font-weight:600;color:#059669;"><?= number_format(array_sum(array_column($items, 'qty_done'))) ?></td>
+                    <td class="text-center" style="font-weight:600;color:#475569;"><?= array_sum(array_column($items, 'request_count')) ?></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+<?php endforeach; ?>
+<?php endif; ?>
+
+<!-- ====================================================================
+     Modal: รายละเอียดห้องที่ใช้อุปกรณ์
+===================================================================== -->
+<div class="modal fade" id="roomsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius:16px;border:none;">
+            <div class="modal-header border-0 pb-2">
+                <div>
+                    <h6 class="modal-title fw-bold mb-0" id="modalItemTitle">—</h6>
+                    <div style="font-size:0.8rem;color:#94a3b8;" id="modalItemSub">รายการห้องพักที่แจ้งซ่อมอุปกรณ์นี้</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <!-- Loader -->
+                <div id="modalLoader" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-success me-2"></div>
+                    <span style="font-size:0.88rem;color:#64748b;">กำลังโหลด...</span>
+                </div>
+                <!-- Table -->
+                <div id="modalTable" style="display:none;">
+                    <table class="table table-clean mb-0">
+                        <thead>
+                            <tr>
+                                <th style="padding-left:4px;">#</th>
+                                <th>Ticket ID</th>
+                                <th>หอพัก</th>
+                                <th>ห้อง</th>
+                                <th class="text-center">จำนวน</th>
+                                <th>สถานะใบงาน</th>
+                                <th>สถานะอุปกรณ์</th>
+                                <th>วันที่แจ้ง</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalTbody"></tbody>
+                    </table>
+                </div>
+                <div id="modalEmpty" style="display:none;" class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox" style="font-size:1.8rem;display:block;margin-bottom:6px;"></i>
+                    ไม่พบข้อมูล
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php
+$filterStatus   = json_encode($filter_status);
+$filterCategory = json_encode($filter_category);
+$extra_scripts  = <<<'JS'
+<script>
+const statusBadgeClass = {
+    'รอดำเนินการ':    'badge-pending',
+    'กำลังดำเนินการ': 'badge-progress',
+    'เสร็จสิ้น':      'badge-completed',
+    'ยกเลิก':         'badge-cancelled',
+};
+
+function showRooms(itemId, itemName) {
+    document.getElementById('modalItemTitle').textContent = itemName;
+    document.getElementById('modalItemSub').textContent = 'รายการห้องพักที่แจ้งซ่อมอุปกรณ์นี้';
+    document.getElementById('modalLoader').style.display = 'block';
+    document.getElementById('modalTable').style.display  = 'none';
+    document.getElementById('modalEmpty').style.display  = 'none';
+
+    const modal = new bootstrap.Modal(document.getElementById('roomsModal'));
+    modal.show();
+
+    // Build URL with current filters
+    const params = new URLSearchParams(window.location.search);
+    params.set('ajax', '1');
+    params.set('item_id', itemId);
+    const url = 'materials.php?' + params.toString();
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('modalLoader').style.display = 'none';
+            if (!data.rows || data.rows.length === 0) {
+                document.getElementById('modalEmpty').style.display = 'block';
+                return;
+            }
+            let html = '';
+            data.rows.forEach((row, i) => {
+                const reqCls  = statusBadgeClass[row.req_status]  || 'badge-pending';
+                const itemCls = statusBadgeClass[row.item_status] || 'badge-pending';
+                html += `<tr>
+                    <td style="padding-left:4px;color:#94a3b8;font-size:0.8rem;">${i + 1}</td>
+                    <td>
+                        <a href="repair_detail.php?ticket=${row.ticket_id}"
+                           style="font-weight:600;font-size:0.85rem;color:#06C755;text-decoration:none;">
+                           ${row.ticket_id}
+                        </a>
+                    </td>
+                    <td style="font-size:0.85rem;">${row.dorm_name}</td>
+                    <td style="font-weight:600;font-size:0.9rem;font-family:monospace;">${row.room_number}</td>
+                    <td class="text-center" style="font-weight:700;font-size:1rem;">${row.quantity}</td>
+                    <td><span class="badge-status ${reqCls}" style="font-size:0.75rem;">${row.req_status}</span></td>
+                    <td><span class="badge-status ${itemCls}" style="font-size:0.75rem;">${row.item_status}</span></td>
+                    <td style="font-size:0.78rem;color:#94a3b8;white-space:nowrap;">${row.created_at}</td>
+                </tr>`;
+            });
+            document.getElementById('modalTbody').innerHTML = html;
+            document.getElementById('modalTable').style.display = 'block';
+
+            // Update subtitle with count
+            document.getElementById('modalItemSub').textContent =
+                `พบ ${data.rows.length} ใบงาน · รวม ${data.total_qty} ชิ้น`;
+        })
+        .catch(() => {
+            document.getElementById('modalLoader').style.display = 'none';
+            document.getElementById('modalEmpty').style.display = 'block';
+            document.getElementById('modalEmpty').innerHTML = '<i class="bi bi-exclamation-circle text-danger" style="font-size:1.5rem;display:block;margin-bottom:6px;"></i>เกิดข้อผิดพลาด';
+        });
+}
+</script>
+JS;
+
+include 'includes/footer.php';
+?>
