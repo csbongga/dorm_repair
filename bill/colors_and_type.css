@@ -1,0 +1,153 @@
+/* ============================================================
+   Nong Piew Dee — Core Design Tokens
+   Colors + Typography foundations
+   "Calm Clinical Warmth"
+   ============================================================ */
+
+/* Fonts loaded via Google Fonts CDN (see README — flagged substitution,
+   brand has no proprietary typeface yet).
+   Plus Jakarta Sans  — display + UI (friendly humanist geometric)
+   Noto Sans Thai      — Thai script companion
+   IBM Plex Mono       — data / vitals / dosages / timestamps        */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ---------- BRAND: Care Teal (primary) ---------- */
+  --teal-50:  #E6F5F4;
+  --teal-100: #C6E9E6;
+  --teal-200: #9BD9D3;
+  --teal-300: #66C4BC;
+  --teal-400: #34ABA2;
+  --teal-500: #159187;   /* primary */
+  --teal-600: #0C7A72;
+  --teal-700: #0A625C;
+  --teal-800: #084E49;
+  --teal-900: #063B37;
+
+  /* ---------- BRAND: Sky (secondary, informational) ---------- */
+  --sky-100: #DCEEF9;
+  --sky-300: #9CCBEB;
+  --sky-400: #6FB7E0;
+  --sky-500: #4A9BD4;
+  --sky-600: #357FB8;
+
+  /* ---------- BRAND: Mint (accent, positive/vitality) ---------- */
+  --mint-100: #DEF6EC;
+  --mint-300: #A6E6CB;
+  --mint-400: #7FD9B0;
+  --mint-500: #4FC393;
+
+  /* ---------- NEUTRALS (cool, faint teal tint) ---------- */
+  --ink-900: #0E2A2D;   /* strongest text */
+  --ink-800: #163A3D;
+  --ink-700: #244448;   /* default text */
+  --ink-600: #3A5A5E;
+  --ink-500: #547074;   /* muted text */
+  --ink-400: #7F999C;   /* subtle text / placeholders */
+  --ink-300: #A9BFC1;
+  --ink-200: #DCE8E9;   /* borders / dividers */
+  --ink-100: #EDF4F5;   /* subtle surface fill */
+  --ink-50:  #F3F8F9;   /* app canvas */
+  --white:   #FFFFFF;
+
+  /* ---------- SEMANTIC (soft, never alarming) ---------- */
+  --success:    #2E9E6B;
+  --success-bg: #E4F5EC;
+  --warning:    #C8881F;
+  --warning-bg: #FBF1DD;
+  --danger:     #CF5C4E;   /* soft coral, not clinical red */
+  --danger-bg:  #FAE8E5;
+  --info:       #357FB8;
+  --info-bg:    #E6F1FA;
+
+  /* ---------- SEMANTIC ALIASES (use these in product code) ---------- */
+  --bg-canvas:   var(--ink-50);
+  --bg-surface:  var(--white);
+  --bg-subtle:   var(--ink-100);
+  --bg-brand:    var(--teal-500);
+  --bg-brand-soft: var(--teal-50);
+
+  --fg-strong:   var(--ink-900);
+  --fg-default:  var(--ink-700);
+  --fg-muted:    var(--ink-500);
+  --fg-subtle:   var(--ink-400);
+  --fg-on-brand: var(--white);
+  --fg-brand:    var(--teal-600);
+
+  --border:      var(--ink-200);
+  --border-strong: var(--ink-300);
+  --border-brand: var(--teal-300);
+
+  /* ---------- TYPE FAMILIES ---------- */
+  --font-display: 'Plus Jakarta Sans', 'Noto Sans Thai', -apple-system, system-ui, sans-serif;
+  --font-body:    'Plus Jakarta Sans', 'Noto Sans Thai', -apple-system, system-ui, sans-serif;
+  --font-thai:    'Noto Sans Thai', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* ---------- TYPE SCALE (px / line-height / weight) ---------- */
+  --text-display: 700 2.5rem/1.1 var(--font-display);   /* 40 */
+  --text-h1:      700 1.875rem/1.2 var(--font-display);  /* 30 */
+  --text-h2:      700 1.5rem/1.25 var(--font-display);   /* 24 */
+  --text-h3:      600 1.25rem/1.3 var(--font-display);   /* 20 */
+  --text-title:   600 1.125rem/1.4 var(--font-display);  /* 18 */
+  --text-body-lg: 400 1.0625rem/1.6 var(--font-body);    /* 17 */
+  --text-body:    400 0.9375rem/1.6 var(--font-body);    /* 15 */
+  --text-body-sm: 400 0.875rem/1.55 var(--font-body);    /* 14 */
+  --text-label:   600 0.8125rem/1.3 var(--font-body);    /* 13 */
+  --text-caption: 500 0.75rem/1.4 var(--font-body);      /* 12 */
+  --text-mono:    500 0.8125rem/1.5 var(--font-mono);    /* 13 */
+
+  --tracking-label: 0.04em;
+  --tracking-tight: -0.01em;
+
+  /* ---------- SPACING (4px base) ---------- */
+  --space-1: 0.25rem;   /* 4  */
+  --space-2: 0.5rem;    /* 8  */
+  --space-3: 0.75rem;   /* 12 */
+  --space-4: 1rem;      /* 16 */
+  --space-5: 1.25rem;   /* 20 */
+  --space-6: 1.5rem;    /* 24 */
+  --space-8: 2rem;      /* 32 */
+  --space-10: 2.5rem;   /* 40 */
+  --space-12: 3rem;     /* 48 */
+  --space-16: 4rem;     /* 64 */
+
+  /* ---------- RADII (soft, friendly) ---------- */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-2xl: 30px;
+  --radius-pill: 999px;
+
+  /* ---------- SHADOWS (soft, teal-tinted, never black) ---------- */
+  --shadow-xs: 0 1px 2px rgba(14,42,45,.06);
+  --shadow-sm: 0 2px 8px rgba(14,42,45,.07);
+  --shadow-md: 0 6px 20px rgba(14,42,45,.09);
+  --shadow-lg: 0 14px 38px rgba(14,42,45,.13);
+  --shadow-brand: 0 8px 24px rgba(21,145,135,.28);
+  --ring-focus: 0 0 0 3px rgba(21,145,135,.32);
+
+  /* ---------- MOTION ---------- */
+  --ease-soft: cubic-bezier(.32,.72,.34,1);
+  --ease-out: cubic-bezier(.22,.61,.36,1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 360ms;
+}
+
+/* ============================================================
+   SEMANTIC ELEMENT STYLES — apply directly or @extend in product
+   ============================================================ */
+.npd-display { font: var(--text-display); letter-spacing: var(--tracking-tight); color: var(--fg-strong); }
+.npd-h1      { font: var(--text-h1); letter-spacing: var(--tracking-tight); color: var(--fg-strong); }
+.npd-h2      { font: var(--text-h2); color: var(--fg-strong); }
+.npd-h3      { font: var(--text-h3); color: var(--fg-strong); }
+.npd-title   { font: var(--text-title); color: var(--fg-strong); }
+.npd-body-lg { font: var(--text-body-lg); color: var(--fg-default); }
+.npd-body    { font: var(--text-body); color: var(--fg-default); }
+.npd-body-sm { font: var(--text-body-sm); color: var(--fg-muted); }
+.npd-label   { font: var(--text-label); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--fg-muted); }
+.npd-caption { font: var(--text-caption); color: var(--fg-subtle); }
+.npd-mono    { font: var(--text-mono); color: var(--fg-default); }

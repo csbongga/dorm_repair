@@ -57,22 +57,16 @@ $current_page = 'materials';
 // ====================================================================
 // Filters
 // ====================================================================
-$filter_status   = $_GET['status']   ?? '';   // กรองตามสถานะใบงาน
 $filter_category = $_GET['category'] ?? '';   // กรองตามหมวดอุปกรณ์
 
-$statusOptions = ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น', 'ยกเลิก'];
-$categories    = ['ประปา', 'ไฟฟ้า', 'ซ่อมสร้าง'];
+$categories = ['ประปา', 'ไฟฟ้า', 'ซ่อมสร้าง'];
 
 // ====================================================================
-// Query: สรุปรายการอุปกรณ์ที่ใช้ในใบงาน
+// Query: สรุปรายการอุปกรณ์ที่ยังอยู่ระหว่างดำเนินงาน (ri.status ยังไม่เสร็จ/ยกเลิก)
 // ====================================================================
-$where  = [];
+$where  = ["ri.status IN ('รอดำเนินการ','กำลังดำเนินการ')"];
 $params = [];
 
-if ($filter_status) {
-    $where[]  = 'rr.status = ?';
-    $params[] = $filter_status;
-}
 if ($filter_category) {
     $where[]  = 'rim.category = ?';
     $params[] = $filter_category;
@@ -112,11 +106,8 @@ $summaryItems = $summaryStmt->fetchAll();
 // ====================================================================
 // Stats header
 // ====================================================================
-$totalQty      = array_sum(array_column($summaryItems, 'total_qty'));
-$totalPending  = array_sum(array_column($summaryItems, 'qty_pending'));
-$totalProgress = array_sum(array_column($summaryItems, 'qty_progress'));
-$totalDone     = array_sum(array_column($summaryItems, 'qty_done'));
-$totalTypes    = count($summaryItems);
+$totalQty   = array_sum(array_column($summaryItems, 'total_qty'));
+$totalTypes = count($summaryItems);
 
 $catMeta = [
     'ประปา'    => ['emoji' => '💧', 'color' => '#3b82f6', 'bg' => '#dbeafe', 'icon' => 'bi-droplet-fill'],
@@ -134,81 +125,41 @@ include 'includes/header.php';
     </div>
 </div>
 
-<!-- Stats -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#f0fdf4;color:#06C755;">
-                <i class="bi bi-box-seam-fill"></i>
-            </div>
-            <div class="stat-value" style="color:#06C755;"><?= number_format($totalQty) ?></div>
-            <div class="stat-label">รวมทั้งหมด (ชิ้น)</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#fef3c7;color:#f59e0b;">
-                <i class="bi bi-hourglass-split"></i>
-            </div>
-            <div class="stat-value text-warning"><?= number_format($totalPending) ?></div>
-            <div class="stat-label">รอดำเนินการ</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#dbeafe;color:#3b82f6;">
-                <i class="bi bi-gear-fill"></i>
-            </div>
-            <div class="stat-value text-primary"><?= number_format($totalProgress) ?></div>
-            <div class="stat-label">กำลังดำเนินการ</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#d1fae5;color:#059669;">
-                <i class="bi bi-check-circle-fill"></i>
-            </div>
-            <div class="stat-value text-success"><?= number_format($totalDone) ?></div>
-            <div class="stat-label">เสร็จสิ้นแล้ว</div>
-        </div>
-    </div>
-</div>
 
 <!-- Filters -->
-<div class="panel mb-4">
-    <div class="panel-body py-3">
-        <form method="GET" class="row g-2 align-items-end">
-            <div class="col-12 col-md-4">
-                <label class="form-label mb-1" style="font-size:0.82rem;font-weight:500;color:#64748b;">กรองตามสถานะใบงาน</label>
-                <select name="status" class="form-select form-select-sm">
-                    <option value="">ทุกสถานะ</option>
-                    <?php foreach ($statusOptions as $s): ?>
-                    <option value="<?= $s ?>" <?= $filter_status === $s ? 'selected' : '' ?>><?= $s ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-12 col-md-4">
-                <label class="form-label mb-1" style="font-size:0.82rem;font-weight:500;color:#64748b;">กรองตามหมวดอุปกรณ์</label>
-                <select name="category" class="form-select form-select-sm">
-                    <option value="">ทุกหมวด</option>
-                    <?php foreach ($categories as $c): ?>
-                    <option value="<?= $c ?>" <?= $filter_category === $c ? 'selected' : '' ?>>
-                        <?= $catMeta[$c]['emoji'] ?> <?= $c ?>
-                    </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-12 col-md-4 d-flex gap-2">
-                <button type="submit" class="btn btn-sm flex-fill" style="background:#06C755;color:white;border:none;border-radius:8px;">
-                    <i class="bi bi-funnel-fill me-1"></i>กรอง
-                </button>
-                <a href="materials.php" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-x-lg"></i>
-                </a>
-            </div>
-        </form>
-    </div>
+<div class="d-flex gap-2 flex-wrap mb-4">
+    <a href="materials.php"
+       class="cat-btn <?= $filter_category === '' ? 'cat-btn-active' : '' ?>">
+        🛠️ ทั้งหมด
+    </a>
+    <?php foreach ($categories as $c):
+        $m = $catMeta[$c];
+    ?>
+    <a href="materials.php?category=<?= urlencode($c) ?>"
+       class="cat-btn <?= $filter_category === $c ? 'cat-btn-active' : '' ?>"
+       style="<?= $filter_category === $c ? "--cat-color:{$m['color']};--cat-bg:{$m['bg']};" : '' ?>">
+        <?= $m['emoji'] ?> <?= $c ?>
+    </a>
+    <?php endforeach; ?>
 </div>
+
+<style>
+.cat-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 18px; border-radius: 20px;
+    font-size: 0.88rem; font-weight: 500;
+    text-decoration: none; transition: all .18s;
+    border: 1.5px solid #e2e8f0;
+    background: white; color: #475569;
+}
+.cat-btn:hover { border-color: #06C755; color: #06C755; background: #f0fdf4; }
+.cat-btn-active {
+    background: var(--cat-bg, #f0fdf4);
+    color: var(--cat-color, #16a34a);
+    border-color: var(--cat-color, #16a34a);
+    font-weight: 600;
+}
+</style>
 
 <!-- Main Table -->
 <?php if (empty($summaryItems)): ?>
@@ -253,11 +204,8 @@ foreach ($summaryItems as $item) {
         <table class="table table-clean mb-0">
             <thead>
                 <tr>
-                    <th style="padding-left:20px;width:40%;">ชื่ออุปกรณ์</th>
+                    <th style="padding-left:20px;width:50%;">ชื่ออุปกรณ์</th>
                     <th class="text-center">จำนวนรวม</th>
-                    <th class="text-center">รอดำเนินการ</th>
-                    <th class="text-center">กำลังซ่อม</th>
-                    <th class="text-center">เสร็จแล้ว</th>
                     <th class="text-center">ใบงาน</th>
                     <th style="padding-right:20px;"></th>
                 </tr>
@@ -282,33 +230,6 @@ foreach ($summaryItems as $item) {
                         <div style="font-size:0.7rem;color:#94a3b8;">ชิ้น</div>
                     </td>
                     <td class="text-center">
-                        <?php if ($item['qty_pending'] > 0): ?>
-                        <span class="badge-status badge-pending" style="font-size:0.78rem;">
-                            <?= $item['qty_pending'] ?>
-                        </span>
-                        <?php else: ?>
-                        <span style="color:#cbd5e1;font-size:0.82rem;">—</span>
-                        <?php endif; ?>
-                    </td>
-                    <td class="text-center">
-                        <?php if ($item['qty_progress'] > 0): ?>
-                        <span class="badge-status badge-progress" style="font-size:0.78rem;">
-                            <?= $item['qty_progress'] ?>
-                        </span>
-                        <?php else: ?>
-                        <span style="color:#cbd5e1;font-size:0.82rem;">—</span>
-                        <?php endif; ?>
-                    </td>
-                    <td class="text-center">
-                        <?php if ($item['qty_done'] > 0): ?>
-                        <span class="badge-status badge-completed" style="font-size:0.78rem;">
-                            <?= $item['qty_done'] ?>
-                        </span>
-                        <?php else: ?>
-                        <span style="color:#cbd5e1;font-size:0.82rem;">—</span>
-                        <?php endif; ?>
-                    </td>
-                    <td class="text-center">
                         <span style="font-size:0.88rem;font-weight:500;color:#475569;"><?= $item['request_count'] ?> ใบ</span>
                     </td>
                     <td style="padding-right:20px;">
@@ -326,9 +247,6 @@ foreach ($summaryItems as $item) {
                 <tr style="background:#f8fafc;">
                     <td style="padding-left:20px;font-weight:600;font-size:0.85rem;color:#475569;">รวม <?= $cat ?></td>
                     <td class="text-center" style="font-weight:700;color:#1e293b;"><?= number_format($catQty) ?></td>
-                    <td class="text-center" style="font-weight:600;color:#d97706;"><?= number_format(array_sum(array_column($items, 'qty_pending'))) ?></td>
-                    <td class="text-center" style="font-weight:600;color:#2563eb;"><?= number_format(array_sum(array_column($items, 'qty_progress'))) ?></td>
-                    <td class="text-center" style="font-weight:600;color:#059669;"><?= number_format(array_sum(array_column($items, 'qty_done'))) ?></td>
                     <td class="text-center" style="font-weight:600;color:#475569;"><?= array_sum(array_column($items, 'request_count')) ?></td>
                     <td></td>
                 </tr>

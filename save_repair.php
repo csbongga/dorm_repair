@@ -6,6 +6,7 @@
 
 header('Content-Type: text/html; charset=utf-8');
 require_once 'connect.php';
+require_once 'includes/image_resize.php';
 
 $success = false;
 $error_message = '';
@@ -66,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     $newFileName = 'repair_' . date('Ymd_His') . '_' . uniqid() . '_' . $i . '.' . $fileExtension;
                                     $dest_path = $uploadDir . $newFileName;
 
-                                    if (move_uploaded_file($fileTmpPath, $dest_path)) {
+                                    if (resizeAndSave($fileTmpPath, $dest_path)) {
                                         $uploaded_files[] = $dest_path;
                                     } else {
                                         $error_message = "ไม่สามารถอัปโหลดไฟล์รูปภาพลำดับที่ " . ($i + 1) . " ได้";

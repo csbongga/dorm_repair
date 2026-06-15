@@ -52,7 +52,8 @@ $msg     = '';
 $msgType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+    $action  = $_POST['action'] ?? '';
+    $isAjax  = ($_POST['json'] ?? '') === '1';
 
     if ($action === 'update_status') {
         $newStatus = $_POST['status'] ?? '';
@@ -60,15 +61,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (in_array($newStatus, $allowed) && $repair['status'] !== $newStatus) {
             $oldStatus = $repair['status'];
 
-            // บันทึก log การเปลี่ยนสถานะใบงานหลัก
             $pdo->prepare("INSERT INTO repair_request_logs (request_id, old_status, new_status, staff_id, staff_name) VALUES (?,?,?,?,?)")
                 ->execute([$repair['id'], $oldStatus, $newStatus, $_SESSION['admin_id'], $_SESSION['admin_name']]);
-
             $pdo->prepare("UPDATE repair_requests SET status = ? WHERE ticket_id = ?")->execute([$newStatus, $ticket]);
 
-            // อัปเดต repair_items พร้อม log แต่ละรายการ
             $logItemStmt = $pdo->prepare("INSERT INTO repair_item_logs (item_id, request_id, item_name, old_status, new_status, staff_id, staff_name) VALUES (?,?,?,?,?,?,?)");
-
             if ($newStatus === 'เสร็จสิ้น') {
                 $affectedItems = $pdo->prepare("SELECT ri.id, ri.status, rim.item_name FROM repair_items ri JOIN repair_items_master rim ON ri.item_master_id = rim.id WHERE ri.request_id = ? AND ri.status NOT IN ('ยกเลิก','เสร็จสิ้น')");
                 $affectedItems->execute([$repair['id']]);
@@ -76,7 +73,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $logItemStmt->execute([$ai['id'], $repair['id'], $ai['item_name'], $ai['status'], 'เสร็จสิ้น', $_SESSION['admin_id'], $_SESSION['admin_name']]);
                 }
                 $pdo->prepare("UPDATE repair_items SET status = 'เสร็จสิ้น' WHERE request_id = ? AND status != 'ยกเลิก'")->execute([$repair['id']]);
-
             } elseif ($newStatus === 'กำลังดำเนินการ') {
                 $affectedItems = $pdo->prepare("SELECT ri.id, rim.item_name FROM repair_items ri JOIN repair_items_master rim ON ri.item_master_id = rim.id WHERE ri.request_id = ? AND ri.status = 'รอดำเนินการ'");
                 $affectedItems->execute([$repair['id']]);
@@ -90,6 +86,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg     = 'อัปเดตสถานะใบงานเรียบร้อยแล้ว';
             $msgType = 'success';
         }
+        if ($isAjax) {
+            // ดึงสถานะ item ทั้งหมดหลังอัปเดต เพื่อให้ JS ซิงค์ได้โดยไม่ต้องรีเฟรช
+            $updatedItems = $pdo->prepare("SELECT id, status FROM repair_items WHERE request_id = ?");
+            $updatedItems->execute([$repair['id']]);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => true,
+                'status'  => $repair['status'],
+                'items'   => $updatedItems->fetchAll(PDO::FETCH_KEY_PAIR),
+            ]);
+            exit;
+        }
     }
 
     if ($action === 'update_item_status') {
@@ -97,21 +105,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $itemStatus = $_POST['item_status'] ?? '';
         $allowed    = ['รอดำเนินการ', 'กำลังดำเนินการ', 'เสร็จสิ้น', 'ยกเลิก'];
         if ($itemId && in_array($itemStatus, $allowed)) {
-            // ดึงสถานะเก่าและชื่ออุปกรณ์
             $oldStmt = $pdo->prepare("SELECT ri.status, rim.item_name FROM repair_items ri JOIN repair_items_master rim ON ri.item_master_id = rim.id WHERE ri.id = ? AND ri.request_id = ?");
             $oldStmt->execute([$itemId, $repair['id']]);
             $oldItem = $oldStmt->fetch();
-
             if ($oldItem && $oldItem['status'] !== $itemStatus) {
                 $pdo->prepare("UPDATE repair_items SET status = ? WHERE id = ? AND request_id = ?")->execute([$itemStatus, $itemId, $repair['id']]);
-                // บันทึก log
                 $pdo->prepare("INSERT INTO repair_item_logs (item_id, request_id, item_name, old_status, new_status, staff_id, staff_name) VALUES (?,?,?,?,?,?,?)")
                     ->execute([$itemId, $repair['id'], $oldItem['item_name'], $oldItem['status'], $itemStatus, $_SESSION['admin_id'], $_SESSION['admin_name']]);
             }
             $msg     = 'อัปเดตสถานะรายการเรียบร้อยแล้ว';
             $msgType = 'success';
         }
-        // Refresh items
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => true]);
+            exit;
+        }
         $itemsStmt->execute([$repair['id']]);
         $items = $itemsStmt->fetchAll();
     }
@@ -195,7 +204,7 @@ include 'includes/header.php';
                             แจ้งเมื่อ <?= date('d/m/Y H:i', strtotime($repair['created_at'])) ?> น.
                         </div>
                     </div>
-                    <?= statusBadge($repair['status']) ?>
+                    <span id="ticketStatusBadge"><?= statusBadge($repair['status']) ?></span>
                 </div>
 
                 <hr style="border-color:#f1f5f9;margin:16px 0;">
@@ -256,18 +265,13 @@ include 'includes/header.php';
                             </td>
                             <td><small class="text-muted"><?= htmlspecialchars($item['category']) ?></small></td>
                             <td><?= $item['quantity'] ?></td>
-                            <td><?= statusBadge($item['status']) ?></td>
+                            <td id="item-badge-<?= $item['id'] ?>"><?= statusBadge($item['status']) ?></td>
                             <td style="padding-right:20px;">
-                                <form method="POST" class="d-flex gap-1">
-                                    <input type="hidden" name="action" value="update_item_status">
-                                    <input type="hidden" name="item_id" value="<?= $item['id'] ?>">
-                                    <select name="item_status" class="form-select form-select-sm" style="font-size:0.8rem;width:auto;">
-                                        <?php foreach ($statuses as $s): ?>
-                                        <option value="<?= $s ?>" <?= $item['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <button type="submit" class="btn btn-sm btn-outline-primary" style="font-size:0.78rem;">บันทึก</button>
-                                </form>
+                                <select class="form-select form-select-sm item-status-select" data-item-id="<?= $item['id'] ?>" style="font-size:0.8rem;width:auto;">
+                                    <?php foreach ($statuses as $s): ?>
+                                    <option value="<?= $s ?>" <?= $item['status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -351,9 +355,6 @@ include 'includes/header.php';
                         </label>
                         <?php endforeach; ?>
                     </div>
-                    <button type="submit" class="btn w-100" style="background:#06C755;color:white;border:none;border-radius:10px;padding:11px;font-family:'Kanit',sans-serif;font-weight:600;">
-                        <i class="bi bi-check-lg me-1"></i>บันทึกสถานะ
-                    </button>
                 </form>
             </div>
         </div>
@@ -467,8 +468,27 @@ include 'includes/header.php';
 </div>
 
 <?php
-$extra_scripts = "
+$extra_scripts = <<<'JS'
 <script>
+// ── badge HTML helper ─────────────────────────────────────────────────────
+const STATUS_MAP = {
+    'รอดำเนินการ':    ['badge-pending',   'bi-hourglass-split'],
+    'กำลังดำเนินการ': ['badge-progress',  'bi-gear-fill'],
+    'เสร็จสิ้น':      ['badge-completed', 'bi-check-circle-fill'],
+    'ยกเลิก':         ['badge-cancelled', 'bi-x-circle-fill'],
+};
+const STATUS_COLORS = {
+    'รอดำเนินการ':    ['#fef3c7','#d97706','#f59e0b'],
+    'กำลังดำเนินการ': ['#dbeafe','#1d4ed8','#3b82f6'],
+    'เสร็จสิ้น':      ['#d1fae5','#065f46','#059669'],
+    'ยกเลิก':         ['#fee2e2','#991b1b','#dc2626'],
+};
+function makeBadge(s) {
+    const [cls, icon] = STATUS_MAP[s] ?? ['badge-pending','bi-circle'];
+    return `<span class="badge-status ${cls}"><i class="bi ${icon} me-1"></i>${s}</span>`;
+}
+
+// ── preview image ─────────────────────────────────────────────────────────
 function previewImg(url) {
     Swal.fire({
         imageUrl: url,
@@ -479,21 +499,82 @@ function previewImg(url) {
     });
 }
 
-// Highlight radio label on change
-document.querySelectorAll('input[name=\"status\"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        document.querySelectorAll('input[name=\"status\"]').forEach(r => {
-            const label = r.closest('label');
-            label.style.borderColor = '#e2e8f0';
-            label.style.background = '#fff';
-            label.querySelector('span').style.fontWeight = '400';
-        });
-        const lbl = this.closest('label');
-        lbl.style.borderColor = this.nextElementSibling ? '' : '';
-        // just reload for simplicity
+// ── toast helper ─────────────────────────────────────────────────────────
+function showToast(msg, icon = 'success') {
+    Swal.fire({
+        toast: true, position: 'top-end', showConfirmButton: false,
+        timer: 2200, timerProgressBar: true,
+        icon, title: msg,
+    });
+}
+
+// ── update_status (AJAX on radio change) ─────────────────────────────────
+async function saveStatus(newStatus) {
+    const fd = new FormData();
+    fd.set('action', 'update_status');
+    fd.set('status', newStatus);
+    fd.set('json',   '1');
+    try {
+        const res  = await fetch(location.href, { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) {
+            // อัปเดต badge หัวใบงาน
+            document.getElementById('ticketStatusBadge').innerHTML = makeBadge(data.status);
+            // อัปเดตไฮไลต์ radio
+            document.querySelectorAll('input[name="status"]').forEach(r => {
+                const lbl = r.closest('label');
+                const [bg, text, border] = STATUS_COLORS[r.value] ?? ['#fff','#334155','#e2e8f0'];
+                const active = r.value === data.status;
+                lbl.style.borderColor = active ? border : '#e2e8f0';
+                lbl.style.background  = active ? bg     : '#fff';
+                lbl.querySelector('span').style.color      = active ? text  : '#334155';
+                lbl.querySelector('span').style.fontWeight = active ? '600' : '400';
+            });
+            // อัปเดต badge + select ของ item ทุกรายการ
+            if (data.items) {
+                Object.entries(data.items).forEach(([id, status]) => {
+                    const badge = document.getElementById('item-badge-' + id);
+                    const sel   = document.querySelector(`.item-status-select[data-item-id="${id}"]`);
+                    if (badge) badge.innerHTML = makeBadge(status);
+                    if (sel)   sel.value = status;
+                });
+            }
+            showToast('อัปเดตสถานะใบงานเรียบร้อยแล้ว');
+        }
+    } catch(err) {
+        showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
+    }
+}
+document.querySelectorAll('input[name="status"]').forEach(r => {
+    r.addEventListener('change', () => saveStatus(r.value));
+});
+
+// ── update_item_status (AJAX on select change) ───────────────────────────
+document.querySelectorAll('.item-status-select').forEach(sel => {
+    sel.addEventListener('change', async function() {
+        const itemId    = this.dataset.itemId;
+        const newStatus = this.value;
+        this.disabled   = true;
+        const fd = new FormData();
+        fd.set('action',      'update_item_status');
+        fd.set('item_id',     itemId);
+        fd.set('item_status', newStatus);
+        fd.set('json',        '1');
+        try {
+            const res  = await fetch(location.href, { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('item-badge-' + itemId).innerHTML = makeBadge(newStatus);
+                showToast('อัปเดตสถานะรายการเรียบร้อยแล้ว');
+            }
+        } catch(err) {
+            showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
+        }
+        this.disabled = false;
     });
 });
-</script>";
+</script>
+JS;
 
 include 'includes/footer.php';
 ?>

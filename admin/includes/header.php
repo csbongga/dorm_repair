@@ -437,16 +437,18 @@
     <div class="sidebar-brand">
         <div class="brand-icon"><i class="bi bi-tools"></i></div>
         <div>
-            <div class="brand-text">Dorm Repair</div>
-            <div class="brand-sub">Admin Panel</div>
+            <div class="brand-text">Dorm Manager</div>
+            <div class="brand-sub">ระบบจัดการหอพัก</div>
         </div>
     </div>
 
     <nav class="sidebar-nav">
-        <div class="sidebar-section-label">เมนูหลัก</div>
+
         <a href="index.php" class="nav-item <?= ($current_page ?? '') === 'dashboard' ? 'active' : '' ?>">
             <i class="bi bi-grid-1x2-fill"></i> Dashboard
         </a>
+
+        <div class="sidebar-section-label">งานซ่อม</div>
         <a href="repairs.php" class="nav-item <?= ($current_page ?? '') === 'repairs' ? 'active' : '' ?>">
             <i class="bi bi-clipboard2-check-fill"></i> ใบงานแจ้งซ่อม
         </a>
@@ -457,17 +459,36 @@
             <i class="bi bi-box-seam-fill"></i> วัสดุที่ต้องใช้
         </a>
 
+        <div class="sidebar-section-label">ค่าน้ำ / ค่าไฟ</div>
+        <a href="meter_verify.php" class="nav-item <?= ($current_page ?? '') === 'meter_verify' ? 'active' : '' ?>">
+            <i class="bi bi-droplet-fill"></i> มิเตอร์น้ำ
+        </a>
+        <a href="meter_elec.php" class="nav-item <?= ($current_page ?? '') === 'meter_elec' ? 'active' : '' ?>">
+            <i class="bi bi-lightning-charge-fill"></i> มิเตอร์ไฟฟ้า
+        </a>
+        <a href="payment_verify.php" class="nav-item <?= ($current_page ?? '') === 'payment_verify' ? 'active' : '' ?>">
+            <i class="bi bi-cash-coin"></i> ยืนยันการชำระเงิน
+        </a>
+
         <div class="sidebar-section-label">รายงาน</div>
         <a href="report.php" class="nav-item <?= ($current_page ?? '') === 'report' ? 'active' : '' ?>">
             <i class="bi bi-file-earmark-bar-graph-fill"></i> ออกรายงาน
         </a>
 
+        <div class="sidebar-section-label">ตั้งค่า</div>
+        <a href="bill_settings.php" class="nav-item <?= ($current_page ?? '') === 'bill_settings' ? 'active' : '' ?>">
+            <i class="bi bi-gear-fill"></i> ตั้งค่าระบบบิล
+        </a>
+        <a href="meter_init.php" class="nav-item <?= ($current_page ?? '') === 'meter_init' ? 'active' : '' ?>">
+            <i class="bi bi-123"></i> มิเตอร์น้ำเริ่มต้น
+        </a>
+        <a href="meter_init_elec.php" class="nav-item <?= ($current_page ?? '') === 'meter_init_elec' ? 'active' : '' ?>">
+            <i class="bi bi-123"></i> มิเตอร์ไฟฟ้าเริ่มต้น
+        </a>
+
         <div class="sidebar-section-label">จัดการข้อมูล</div>
         <a href="dorms.php" class="nav-item <?= ($current_page ?? '') === 'dorms' ? 'active' : '' ?>">
             <i class="bi bi-building-fill"></i> หอพัก / ห้องพัก
-        </a>
-        <a href="items.php" class="nav-item <?= ($current_page ?? '') === 'items' ? 'active' : '' ?>">
-            <i class="bi bi-tools"></i> รายการอุปกรณ์
         </a>
         <a href="students.php" class="nav-item <?= ($current_page ?? '') === 'students' ? 'active' : '' ?>">
             <i class="bi bi-people-fill"></i> นักศึกษา
@@ -475,6 +496,10 @@
         <a href="staff.php" class="nav-item <?= ($current_page ?? '') === 'staff' ? 'active' : '' ?>">
             <i class="bi bi-person-badge-fill"></i> เจ้าหน้าที่ / ช่าง
         </a>
+        <a href="items.php" class="nav-item <?= ($current_page ?? '') === 'items' ? 'active' : '' ?>">
+            <i class="bi bi-tools"></i> รายการอุปกรณ์
+        </a>
+
     </nav>
 
     <div class="sidebar-footer">

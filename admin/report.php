@@ -438,13 +438,6 @@ $printUrl = 'report.php?' . $printParams;
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-2">
         <div class="stat-card">
-            <div class="stat-icon" style="background:#f1f5f9;color:#475569;"><i class="bi bi-calendar-range-fill"></i></div>
-            <div class="stat-value" style="font-size:1.1rem;"><?= $dateFromFmt ?></div>
-            <div class="stat-label">ถึง <?= $dateToFmt ?></div>
-        </div>
-    </div>
-    <div class="col-6 col-md-2">
-        <div class="stat-card">
             <div class="stat-icon" style="background:#dbeafe;color:#3b82f6;"><i class="bi bi-clipboard2-fill"></i></div>
             <div class="stat-value" style="color:#3b82f6;"><?= number_format($reqStats['req_count']) ?></div>
             <div class="stat-label">ใบงานทั้งหมด</div>
@@ -482,7 +475,7 @@ $printUrl = 'report.php?' . $printParams;
 
 <div class="row g-4">
     <!-- Main report table -->
-    <div class="col-lg-8">
+    <div class="col-lg-12">
         <div class="panel">
             <div class="panel-header">
                 <span class="panel-title"><i class="bi bi-table"></i> รายละเอียดอุปกรณ์</span>

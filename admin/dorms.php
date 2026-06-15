@@ -117,9 +117,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id          = (int)$_POST['room_id'];
         $room_number = trim($_POST['room_number'] ?? '');
         $status      = $_POST['status'] ?? 'พร้อมใช้งาน';
+        $init_raw    = trim($_POST['water_meter_init'] ?? '');
+        $water_init  = ($init_raw !== '' && is_numeric($init_raw)) ? (float)$init_raw : null;
         if ($id && $room_number) {
-            $pdo->prepare("UPDATE rooms SET room_number=?, status=? WHERE id=?")
-                ->execute([$room_number, $status, $id]);
+            $pdo->prepare("UPDATE rooms SET room_number=?, status=?, water_meter_init=? WHERE id=?")
+                ->execute([$room_number, $status, $water_init, $id]);
             $msg     = "อัปเดตห้อง {$room_number} เรียบร้อยแล้ว";
             $msgType = 'success';
         }
@@ -176,7 +178,7 @@ $dorms = $pdo->query("
 // ห้องพักของหอที่เลือก (หรือทั้งหมดถ้าไม่ได้เลือก)
 $roomsWhere  = $selectedDorm ? 'WHERE r.dorm_id = ' . $selectedDorm : '';
 $rooms = $pdo->query("
-    SELECT r.id, r.room_number, r.status, r.dorm_id,
+    SELECT r.id, r.room_number, r.status, r.dorm_id, r.water_meter_init,
            d.name AS dorm_name,
            (SELECT COUNT(*) FROM students s WHERE s.room_id = r.id) AS student_count,
            (SELECT COUNT(*) FROM repair_requests rr WHERE rr.room_id = r.id) AS repair_count,
@@ -700,6 +702,18 @@ include 'includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <div class="mb-1">
+                        <label class="form-label" style="font-size:0.85rem;font-weight:500;">
+                            <i class="bi bi-droplet-fill me-1" style="color:#0ea5e9;"></i>
+                            เลขมิเตอร์น้ำเริ่มต้น (ก่อนใช้ระบบ)
+                        </label>
+                        <input type="number" name="water_meter_init" id="editRoomWaterInit"
+                               class="form-control form-control-sm"
+                               placeholder="เว้นว่างถ้าไม่มี" min="0" step="0.01">
+                        <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">
+                            ใช้แสดง "เลขครั้งก่อน" ในหน้าส่งมิเตอร์สำหรับเดือนแรก
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
@@ -754,10 +768,11 @@ function openBatchModal() {
 }
 
 function openEditRoomModal(room) {
-    document.getElementById('editRoomId').value     = room.id;
-    document.getElementById('editRoomNumber').value = room.room_number;
-    document.getElementById('editRoomStatus').value = room.status;
-    document.getElementById('editRoomDorm').value   = room.dorm_name;
+    document.getElementById('editRoomId').value        = room.id;
+    document.getElementById('editRoomNumber').value    = room.room_number;
+    document.getElementById('editRoomStatus').value    = room.status;
+    document.getElementById('editRoomDorm').value      = room.dorm_name;
+    document.getElementById('editRoomWaterInit').value = room.water_meter_init ?? '';
     new bootstrap.Modal(document.getElementById('editRoomModal')).show();
 }
 

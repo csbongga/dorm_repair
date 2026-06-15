@@ -2,9 +2,8 @@
 require_once 'includes/auth_check.php';
 require_once '../connect.php';
 
-$page_title    = 'Dashboard';
-$page_subtitle = 'ภาพรวมระบบแจ้งซ่อมหอพัก';
-$current_page  = 'dashboard';
+$page_title   = 'Dashboard';
+$current_page = 'dashboard';
 
 // ===== ดึงข้อมูลสถิติ =====
 // ยอดใบงานรวมแยกตามสถานะ
@@ -87,6 +86,24 @@ for ($i = 6; $i >= 0; $i--) {
     if (!$found) $chartData[] = 0;
 }
 
+// ===== ข้อมูลบิลค่าน้ำ =====
+$cycleRow    = $pdo->query("SELECT id, label FROM bill_cycles WHERE is_current = 1 LIMIT 1")->fetch();
+$cycle_id    = $cycleRow['id']    ?? null;
+$cycle_label = $cycleRow['label'] ?? null;
+
+$meterPending = $meterVerified = $meterNoData = 0;
+if ($cycle_id) {
+    $mp = $pdo->prepare("SELECT COUNT(*) FROM bill_meters WHERE cycle_id = ? AND water_status = 'review'");
+    $mp->execute([$cycle_id]); $meterPending = (int)$mp->fetchColumn();
+
+    $mv = $pdo->prepare("SELECT COUNT(*) FROM bill_meters WHERE cycle_id = ? AND water_status = 'verified'");
+    $mv->execute([$cycle_id]); $meterVerified = (int)$mv->fetchColumn();
+
+    $mn = $pdo->query("SELECT COUNT(*) FROM rooms")->fetchColumn();
+    $ms = $pdo->prepare("SELECT COUNT(DISTINCT room_id) FROM bill_meters WHERE cycle_id = ?");
+    $ms->execute([$cycle_id]); $meterNoData = max(0, (int)$mn - (int)$ms->fetchColumn());
+}
+
 $extra_head = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>';
 
 include 'includes/header.php';
@@ -103,25 +120,32 @@ function statusBadge($status) {
 }
 ?>
 
-<!-- Stats Row -->
+<?php
+$rate = $stats['total'] > 0 ? round($stats['completed'] / $stats['total'] * 100) : 0;
+?>
+
+<!-- Section: งานซ่อม -->
+<div style="font-size:0.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">
+    <i class="bi bi-clipboard2-check-fill me-1"></i> งานซ่อม
+</div>
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#dbeafe; color:#3b82f6;">
-                <i class="bi bi-clipboard2-fill"></i>
-            </div>
-            <div class="stat-value"><?= number_format($stats['total']) ?></div>
-            <div class="stat-label">ใบงานทั้งหมด</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card">
+        <a href="repairs.php" class="stat-card d-block text-decoration-none">
             <div class="stat-icon" style="background:#fef3c7; color:#f59e0b;">
                 <i class="bi bi-hourglass-split"></i>
             </div>
             <div class="stat-value text-warning"><?= number_format($stats['pending']) ?></div>
             <div class="stat-label">รอดำเนินการ</div>
-        </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="repairs.php" class="stat-card d-block text-decoration-none">
+            <div class="stat-icon" style="background:#fee2e2; color:#dc2626;">
+                <i class="bi bi-gear-fill"></i>
+            </div>
+            <div class="stat-value text-danger"><?= number_format($stats['in_progress']) ?></div>
+            <div class="stat-label">กำลังดำเนินการ</div>
+        </a>
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card">
@@ -134,54 +158,59 @@ function statusBadge($status) {
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card">
-            <div class="stat-icon" style="background:#f0fdf4; color:#06C755;">
-                <i class="bi bi-people-fill"></i>
-            </div>
-            <div class="stat-value" style="color:#06C755;"><?= number_format($studentCount) ?></div>
-            <div class="stat-label">นักศึกษาลงทะเบียน</div>
-        </div>
-    </div>
-</div>
-
-<!-- Extra row -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#ede9fe; color:#7c3aed;">
-                <i class="bi bi-calendar-day-fill"></i>
-            </div>
-            <div class="stat-value" style="color:#7c3aed;"><?= number_format($todayCount) ?></div>
-            <div class="stat-label">แจ้งซ่อมวันนี้</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#fee2e2; color:#dc2626;">
-                <i class="bi bi-gear-fill"></i>
-            </div>
-            <div class="stat-value text-danger"><?= number_format($stats['in_progress']) ?></div>
-            <div class="stat-label">กำลังดำเนินการ</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#f1f5f9; color:#64748b;">
-                <i class="bi bi-x-circle-fill"></i>
-            </div>
-            <div class="stat-value text-secondary"><?= number_format($stats['cancelled']) ?></div>
-            <div class="stat-label">ยกเลิก</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card">
-            <?php
-            $rate = $stats['total'] > 0 ? round($stats['completed'] / $stats['total'] * 100) : 0;
-            ?>
             <div class="stat-icon" style="background:#ecfdf5; color:#059669;">
                 <i class="bi bi-graph-up-arrow"></i>
             </div>
             <div class="stat-value text-success"><?= $rate ?>%</div>
             <div class="stat-label">อัตราซ่อมสำเร็จ</div>
+        </div>
+    </div>
+</div>
+
+<!-- Section: ค่าน้ำ / ค่าไฟ -->
+<div style="font-size:0.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">
+    <i class="bi bi-droplet-fill me-1"></i> ค่าน้ำ / ค่าไฟ
+    <?php if ($cycle_label): ?>
+    <span style="background:#f0fdf4;color:#0d9488;border:1px solid #bbf7d0;border-radius:20px;padding:2px 10px;font-size:0.72rem;margin-left:8px;">
+        <?= htmlspecialchars($cycle_label) ?>
+    </span>
+    <?php endif; ?>
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <a href="meter_verify.php" class="stat-card d-block text-decoration-none">
+            <div class="stat-icon" style="background:#fef3c7; color:#d97706;">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div class="stat-value" style="color:#d97706;"><?= $meterPending ?></div>
+            <div class="stat-label">มิเตอร์รอตรวจสอบ</div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="meter_verify.php" class="stat-card d-block text-decoration-none">
+            <div class="stat-icon" style="background:#ccfbf1; color:#0d9488;">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div class="stat-value" style="color:#0d9488;"><?= $meterVerified ?></div>
+            <div class="stat-label">ยืนยันแล้ว</div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="meter_verify.php" class="stat-card d-block text-decoration-none">
+            <div class="stat-icon" style="background:#f1f5f9; color:#94a3b8;">
+                <i class="bi bi-dash-circle-fill"></i>
+            </div>
+            <div class="stat-value text-secondary"><?= $meterNoData ?></div>
+            <div class="stat-label">ยังไม่มีข้อมูล</div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#f0fdf4; color:#06C755;">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div class="stat-value" style="color:#06C755;"><?= number_format($studentCount) ?></div>
+            <div class="stat-label">นักศึกษาลงทะเบียน</div>
         </div>
     </div>
 </div>

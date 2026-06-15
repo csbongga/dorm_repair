@@ -12,7 +12,14 @@ require_once 'connect.php';
 define('LIFF_ID', '2010214920-pnbPdoey'); // ใส่ LIFF ID ของท่านที่ได้จาก LINE Developers Console
 
 $register_success = false;
-$error_message = '';
+$error_message    = '';
+
+// หน้าที่จะ redirect กลับหลังลงทะเบียนสำเร็จ (whitelist เฉพาะหน้าในระบบ)
+$allowed_redirects = ['repair_form.php', 'meter_submit.php'];
+$redirect_to = $_POST['redirect'] ?? $_GET['redirect'] ?? 'repair_form.php';
+if (!in_array($redirect_to, $allowed_redirects)) {
+    $redirect_to = 'repair_form.php';
+}
 
 // ตรวจสอบการส่งข้อมูลผ่านฟอร์ม (POST Request)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -462,6 +469,7 @@ body.swal2-shown select {
                 <!-- Hidden inputs to receive LINE variables -->
                 <input type="hidden" name="line_uid" id="line_uid" value="">
                 <input type="hidden" name="line_profile_img" id="line_profile_img" value="">
+                <input type="hidden" name="redirect" value="<?= htmlspecialchars($redirect_to) ?>">
 
                 <!-- Student ID Input -->
                 <div class="mb-3">
@@ -848,7 +856,7 @@ body.swal2-shown select {
                 allowOutsideClick: false
             }).then((result) => {
                 if (result.isConfirmed) {
-                    window.location.href = 'repair_form.php';
+                    window.location.href = '<?= htmlspecialchars($redirect_to) ?>';
                 }
             });
         </script>

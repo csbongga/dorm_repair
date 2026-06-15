@@ -25,10 +25,38 @@ $options = [
 try {
     // สร้างการเชื่อมต่อด้วย PDO
     $pdo = new PDO($dsn, $username, $password, $options);
-    
+
     // ตั้งค่า Timezone ให้ตรงกับประเทศไทย (ตัวเลือกเพิ่มเติมเพื่อความถูกต้องของเวลา)
     $pdo->exec("SET time_zone = '+07:00'");
-    
+
+    // ── Auto-cycle: สร้างและตั้งรอบบิลเดือนปัจจุบันอัตโนมัติ ─────────────
+    // ทำงานทุกครั้งที่โหลดหน้า แต่ query จริงเกิดเฉพาะเมื่อรอบเปลี่ยน
+    try {
+        $m   = (int)date('n');
+        $yBE = (int)date('Y') + 543;
+        $cid = $yBE . '-' . str_pad($m, 2, '0', STR_PAD_LEFT);
+
+        $curCid = $pdo->query("SELECT id FROM bill_cycles WHERE is_current = 1 LIMIT 1")->fetchColumn();
+
+        if ($curCid !== $cid) {
+            $thaiMonths = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                           'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+            $thaiShort  = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.',
+                           'ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+            $nextM = $m === 12 ? 1 : $m + 1;
+            $nextY = $m === 12 ? $yBE + 1 : $yBE;
+            $label = $thaiMonths[$m] . ' ' . $yBE;
+            $short = $thaiShort[$m];
+            $due   = '12 ' . $thaiShort[$nextM] . ' ' . $nextY;
+
+            $pdo->prepare("INSERT IGNORE INTO bill_cycles (id, label, short_label, due_text, is_current) VALUES (?,?,?,?,0)")
+                ->execute([$cid, $label, $short, $due]);
+            $pdo->query("UPDATE bill_cycles SET is_current = 0");
+            $pdo->prepare("UPDATE bill_cycles SET is_current = 1 WHERE id = ?")->execute([$cid]);
+        }
+    } catch (PDOException $_e) { /* bill_cycles ยังไม่มีในระบบ — ข้ามไป */ }
+    // ─────────────────────────────────────────────────────────────────────
+
 } catch (PDOException $e) {
     // บันทึกรายละเอียดข้อผิดพลาดจริงลง Error Log ของ Server (ป้องกันการ Leak ข้อมูลเชื่อมต่อให้ภายนอกเห็น)
     error_log("Database Connection Failure: " . $e->getMessage());
