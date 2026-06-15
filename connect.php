@@ -57,6 +57,16 @@ try {
     } catch (PDOException $_e) { /* bill_cycles ยังไม่มีในระบบ — ข้ามไป */ }
     // ─────────────────────────────────────────────────────────────────────
 
+    // ── Auto-migrate: เพิ่มคอลัมน์ water_fine (ถ้ายังไม่มี) ─────────────────
+    try {
+        $pdo->query("SELECT water_fine FROM bill_meters LIMIT 1");
+    } catch (PDOException $e) {
+        try {
+            $pdo->exec("ALTER TABLE bill_meters ADD COLUMN water_fine DECIMAL(10,2) DEFAULT 0");
+        } catch (PDOException $e2) { }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
 } catch (PDOException $e) {
     // บันทึกรายละเอียดข้อผิดพลาดจริงลง Error Log ของ Server (ป้องกันการ Leak ข้อมูลเชื่อมต่อให้ภายนอกเห็น)
     error_log("Database Connection Failure: " . $e->getMessage());

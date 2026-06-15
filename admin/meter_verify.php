@@ -136,7 +136,7 @@ if ($cycle_id) {
         SELECT bm.id,
                COALESCE(bm.water_prev, r.water_meter_init) AS water_prev,
                bm.water_curr, bm.water_photo,
-               bm.water_submitted_at,
+               bm.water_submitted_at, bm.water_fine,
                r.room_number, r.id AS room_id, r.dorm_id,
                d.name AS dorm_name,
                GROUP_CONCAT(CONCAT(s.name, IFNULL(CONCAT(' (', NULLIF(s.phone, ''), ')'), '')) SEPARATOR ', ') AS student_name
@@ -635,6 +635,7 @@ include 'includes/header.php';
     $prev   = $m['water_prev']  !== null ? (float)$m['water_prev']  : null;
     $units  = ($curr !== null && $prev !== null) ? $curr - $prev : null;
     $amount = ($units !== null && $rateWater > 0) ? $units * $rateWater : null;
+    $fine   = $m['water_fine'] !== null ? (float)$m['water_fine'] : 0;
     $photoUrl = $m['water_photo'] ? '../' . htmlspecialchars($m['water_photo']) : null;
 ?>
 <div class="col-12 col-xl-6">
@@ -698,6 +699,14 @@ include 'includes/header.php';
                             <?php endif; ?>
                         </td>
                     </tr>
+                    <?php if ($fine > 0): ?>
+                    <tr>
+                        <td style="color:#ef4444;">ค่าปรับล่าช้า</td>
+                        <td class="td-amount" style="color:#ef4444;">
+                            ฿<?= number_format($fine, 0) ?>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                 </table>
             </div>
         </div>

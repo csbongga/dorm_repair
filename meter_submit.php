@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_pay
 
         $stmt = $pdo->prepare("
             SELECT bc.label,
-                   bm.water_curr, bm.water_prev,
+                   bm.water_curr, bm.water_prev, bm.water_fine,
                    bm.elec_curr, bm.elec_prev,
                    bm.payment_status, bm.payment_submitted_at,
                    bm.payment_confirmed_at
@@ -51,13 +51,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_pay
                 ? (float)$r['elec_curr'] - (float)$r['elec_prev'] : null;
             $wAmt = ($wUnits !== null && $rateW > 0) ? $wUnits * $rateW : null;
             $eAmt = ($eUnits !== null && $rateE > 0) ? $eUnits * $rateE : null;
+            $fine = (float)($r['water_fine'] ?? 0);
             $history[] = [
                 'label'          => $r['label'],
                 'water_units'    => $wUnits,
                 'elec_units'     => $eUnits,
                 'water_amt'      => $wAmt,
                 'elec_amt'       => $eAmt,
-                'total'          => ($wAmt ?? 0) + ($eAmt ?? 0),
+                'water_fine'     => $fine,
+                'total'          => ($wAmt ?? 0) + ($eAmt ?? 0) + $fine,
                 'payment_status' => $r['payment_status'],
                 'paid_at'        => $r['payment_confirmed_at'] ?? $r['payment_submitted_at'],
             ];
@@ -86,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_met
         if ($cycleRow) {
             try {
                 $subStmt = $pdo->prepare("
-                    SELECT water_status, water_curr, water_submitted_at, water_reject_reason,
+                    SELECT water_status, water_curr, water_fine, water_submitted_at, water_reject_reason,
                            payment_slip, payment_status, payment_submitted_at
                     FROM bill_meters
                     WHERE cycle_id = :cid AND room_id = :rid
@@ -96,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_met
             } catch (PDOException $e2) {
                 // fallback: payment columns ยังไม่มีใน DB
                 $subStmt = $pdo->prepare("
-                    SELECT water_status, water_curr, water_submitted_at, water_reject_reason
+                    SELECT water_status, water_curr, water_fine, water_submitted_at, water_reject_reason
                     FROM bill_meters
                     WHERE cycle_id = :cid AND room_id = :rid
                     LIMIT 1
@@ -147,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_met
         $pendingBill = null;
         try {
             $pbStmt = $pdo->prepare("
-                SELECT bm.water_curr, bm.water_prev, bm.elec_curr, bm.elec_prev,
+                SELECT bm.water_curr, bm.water_prev, bm.water_fine, bm.elec_curr, bm.elec_prev,
                        bm.payment_status, bm.payment_slip, bm.payment_submitted_at,
                        bc.label AS cycle_label
                 FROM bill_meters bm
@@ -174,6 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_met
             'elec_curr'    => $elecRow['elec_curr']  ?? null,
             'elec_prev'    => $elecRow['elec_prev']  ?? null,
             'rate_elec'    => $rateElec ?? null,
+            'water_fine'   => $submission['water_fine'] ?? null,
             'bank_name'    => $cfg['bank_name']   ?? null,
             'bank_holder'  => $cfg['bank_holder'] ?? null,
             'bank_acc'     => $cfg['bank_acc']    ?? null,
@@ -232,7 +235,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'check_user') {
         if ($cycleRow) {
             try {
                 $subStmt = $pdo->prepare("
-                    SELECT water_status, water_curr, water_submitted_at, water_reject_reason,
+                    SELECT water_status, water_curr, water_fine, water_submitted_at, water_reject_reason,
                            payment_slip, payment_status, payment_submitted_at
                     FROM bill_meters
                     WHERE cycle_id = :cid AND room_id = :rid
@@ -241,7 +244,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'check_user') {
                 $subStmt->execute(['cid' => $cycleRow['id'], 'rid' => $student['room_id']]);
             } catch (PDOException $e2) {
                 $subStmt = $pdo->prepare("
-                    SELECT water_status, water_curr, water_submitted_at, water_reject_reason
+                    SELECT water_status, water_curr, water_fine, water_submitted_at, water_reject_reason
                     FROM bill_meters
                     WHERE cycle_id = :cid AND room_id = :rid
                     LIMIT 1
@@ -298,11 +301,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'submit_meter') {
     $room_id    = (int)($_POST['room_id']    ?? 0);
     $water_curr = trim($_POST['water_curr']  ?? '');
 
-    $today = (int)date('d');
-    if ($today < SUBMIT_DAY_START || $today > SUBMIT_DAY_END) {
-        echo json_encode(['success' => false, 'message' => 'ไม่อยู่ในช่วงเวลาที่อนุญาต (วันที่ 26–30 เท่านั้น)']);
-        exit;
-    }
+
 
     if (empty($line_uid) || $room_id <= 0 || !is_numeric($water_curr)) {
         echo json_encode(['success' => false, 'message' => 'ข้อมูลไม่ครบถ้วน กรุณาตรวจสอบอีกครั้ง']);
@@ -332,6 +331,33 @@ if (isset($_POST['action']) && $_POST['action'] === 'submit_meter') {
             echo json_encode(['success' => false, 'message' => 'ค่ามิเตอร์รอบนี้ได้รับการยืนยันแล้ว ไม่สามารถแก้ไขได้']);
             exit;
         }
+
+        list($yBE, $m) = explode('-', $cycle_id);
+        $cyc_year = (int)$yBE - 543;
+        $cyc_month = (int)$m;
+
+        $last_day_of_month = (int)date('t', strtotime(sprintf('%04d-%02d-01', $cyc_year, $cyc_month)));
+        $actual_start_day = min(SUBMIT_DAY_START, $last_day_of_month);
+        $actual_end_day = min(SUBMIT_DAY_END, $last_day_of_month);
+
+        $start_date = new DateTime(sprintf('%04d-%02d-%02d', $cyc_year, $cyc_month, $actual_start_day));
+        $start_date->setTime(0, 0, 0);
+        $end_date = new DateTime(sprintf('%04d-%02d-%02d', $cyc_year, $cyc_month, $actual_end_day));
+        $end_date->setTime(0, 0, 0);
+        $now = new DateTime();
+        $now->setTime(0, 0, 0);
+
+        if ($now < $start_date) {
+            echo json_encode(['success' => false, 'message' => 'ยังไม่ถึงช่วงเวลาที่อนุญาตให้อ่านมิเตอร์รอบนี้']);
+            exit;
+        }
+
+        $late_days = 0;
+        if ($now > $end_date) {
+            $interval = $end_date->diff($now);
+            $late_days = $interval->days;
+        }
+        $water_fine = $late_days * 10;
 
         // ดึง water_prev (จาก verified รอบก่อน หรือ water_meter_init)
         $prevStmt = $pdo->prepare("
@@ -394,14 +420,15 @@ if (isset($_POST['action']) && $_POST['action'] === 'submit_meter') {
                     water_photo          = :photo,
                     water_status         = 'review',
                     water_submitted_at   = NOW(),
-                    water_reject_reason  = NULL
+                    water_reject_reason  = NULL,
+                    water_fine           = :fine
                 WHERE id = :id
-            ")->execute(['prev' => $water_prev, 'curr' => $water_curr, 'photo' => $photo_path, 'id' => $existing['id']]);
+            ")->execute(['prev' => $water_prev, 'curr' => $water_curr, 'photo' => $photo_path, 'fine' => $water_fine, 'id' => $existing['id']]);
         } else {
             $pdo->prepare("
-                INSERT INTO bill_meters (cycle_id, room_id, water_prev, water_curr, water_photo, water_status, water_submitted_at)
-                VALUES (:cid, :rid, :prev, :curr, :photo, 'review', NOW())
-            ")->execute(['cid' => $cycle_id, 'rid' => $room_id, 'prev' => $water_prev, 'curr' => $water_curr, 'photo' => $photo_path]);
+                INSERT INTO bill_meters (cycle_id, room_id, water_prev, water_curr, water_photo, water_status, water_submitted_at, water_fine)
+                VALUES (:cid, :rid, :prev, :curr, :photo, 'review', NOW(), :fine)
+            ")->execute(['cid' => $cycle_id, 'rid' => $room_id, 'prev' => $water_prev, 'curr' => $water_curr, 'photo' => $photo_path, 'fine' => $water_fine]);
         }
 
         echo json_encode(['success' => true]);
@@ -996,6 +1023,12 @@ if (isset($_POST['action']) && $_POST['action'] === 'submit_payment') {
                     <span class="bsc-units" id="bscElecUnits">–</span>
                     <span class="bsc-amt"   id="bscElecAmt">– บาท</span>
                 </div>
+                <div class="bsc-row" id="bscFineRow" style="display:none;">
+                    <i class="bsc-icon elec bi bi-exclamation-circle-fill" style="color:#ef4444;"></i>
+                    <span class="bsc-name" style="color:#ef4444;">ค่าปรับส่งล่าช้า</span>
+                    <span class="bsc-units"></span>
+                    <span class="bsc-amt"   id="bscFineAmt" style="color:#ef4444;">– บาท</span>
+                </div>
             </div>
             <div class="bsc-total-box">
                 <span class="bsc-total-label">รวมที่ต้องชำระ</span>
@@ -1333,6 +1366,7 @@ function fetchStudentAndRender(lineUid, displayName, pictureUrl) {
                                 promptpay:   meterData.promptpay,
                                 qr_image:    meterData.qr_image,
                                 cycle_label: pb.cycle_label,
+                                water_fine:  pb.water_fine
                             };
                             const pbSub = {
                                 water_curr:           pb.water_curr,
@@ -1645,10 +1679,19 @@ function renderBillSummary(meterData, sub) {
     document.getElementById('bscElecUnits').textContent = fmt(eUnits) + ' หน่วย';
     document.getElementById('bscElecAmt').textContent   = eAmt != null ? fmtB(eAmt) + ' บาท' : '– บาท';
 
+    // ค่าปรับ
+    const fineAmt = meterData.water_fine ? parseFloat(meterData.water_fine) : 0;
+    if (fineAmt > 0) {
+        document.getElementById('bscFineRow').style.display = 'flex';
+        document.getElementById('bscFineAmt').textContent = fmtB(fineAmt) + ' บาท';
+    } else {
+        document.getElementById('bscFineRow').style.display = 'none';
+    }
+
     // รวม
-    const total = (wAmt ?? 0) + (eAmt ?? 0);
+    const total = (wAmt ?? 0) + (eAmt ?? 0) + fineAmt;
     document.getElementById('bscTotal').textContent =
-        (wAmt != null || eAmt != null) ? fmtB(total) + ' บาท' : '– บาท';
+        (wAmt != null || eAmt != null || fineAmt > 0) ? fmtB(total) + ' บาท' : '– บาท';
 
     // ข้อมูลชำระเงิน
     const payEl = document.getElementById('bscPayInfo');
@@ -1722,6 +1765,11 @@ function openHistory() {
                         <span><i class="bi bi-lightning-charge-fill me-1" style="color:#f59e0b;"></i>ค่าไฟ</span>
                         <span>${fmtU(h.elec_units)} &nbsp; ${fmtB(h.elec_amt)}</span>
                     </div>
+                    ${h.water_fine > 0 ? `
+                    <div class="hp-detail-row">
+                        <span><i class="bi bi-exclamation-circle-fill me-1" style="color:#ef4444;"></i>ค่าปรับส่งล่าช้า</span>
+                        <span style="color:#ef4444;">${fmtB(h.water_fine)}</span>
+                    </div>` : ''}
                     <div class="hp-total-row">
                         <span>รวม</span>
                         <span style="color:#16a34a;">${fmtB(h.total)}</span>

@@ -77,7 +77,7 @@ $confirmedCount  = 0;
 // ดึงสลิปรอตรวจสอบจากทุกรอบ (ไม่จำกัดรอบปัจจุบัน)
 $stmt = $pdo->prepare("
     SELECT bm.id,
-           bm.water_curr, bm.water_prev,
+           bm.water_curr, bm.water_prev, bm.water_fine,
            bm.elec_curr, bm.elec_prev,
            bm.payment_slip, bm.payment_submitted_at,
            r.room_number, r.id AS room_id, r.dorm_id,
@@ -421,8 +421,9 @@ include 'includes/header.php';
     $ePrev  = $p['elec_prev'] !== null ? (float)$p['elec_prev'] : null;
     $eUnits = ($eCurr !== null && $ePrev !== null) ? $eCurr - $ePrev : null;
     $eAmt   = ($eUnits !== null && $rateElec > 0) ? $eUnits * $rateElec : null;
+    $fine   = $p['water_fine'] !== null ? (float)$p['water_fine'] : 0;
 
-    $total    = ($wAmt ?? 0) + ($eAmt ?? 0);
+    $total    = ($wAmt ?? 0) + ($eAmt ?? 0) + $fine;
     $slipUrl  = $p['payment_slip'] ? '../' . htmlspecialchars($p['payment_slip']) : null;
 ?>
 <div class="col-12 col-xl-6">
@@ -483,6 +484,12 @@ include 'includes/header.php';
                             <?php endif; ?>
                         </td>
                     </tr>
+                    <?php if ($fine > 0): ?>
+                    <tr>
+                        <td style="color:#ef4444;"><i class="bi bi-exclamation-circle-fill me-1"></i>ค่าปรับล่าช้า</td>
+                        <td style="color:#ef4444; font-weight: 600;">฿<?= number_format($fine, 0) ?></td>
+                    </tr>
+                    <?php endif; ?>
                     <tr>
                         <td class="td-total-label" style="background:#f0fdf4;border-radius:8px 0 0 8px;padding:10px !important;">
                             <i class="bi bi-receipt-cutoff me-1"></i>รวมทั้งหมด
