@@ -82,7 +82,7 @@ $stmt = $pdo->prepare("
            bm.payment_slip, bm.payment_submitted_at,
            r.room_number, r.id AS room_id, r.dorm_id,
            d.name AS dorm_name,
-           s.name AS student_name,
+           GROUP_CONCAT(CONCAT(s.name, IFNULL(CONCAT(' (', NULLIF(s.phone, ''), ')'), '')) SEPARATOR ', ') AS student_name,
            bc.label AS cycle_label
     FROM bill_meters bm
     JOIN rooms r ON r.id = bm.room_id
@@ -92,6 +92,7 @@ $stmt = $pdo->prepare("
     WHERE bm.payment_status = 'pending'
       AND (:fdorm_c = 0 OR r.dorm_id = :fdorm_v)
       AND (:ffloor_c = 0 OR r.floor  = :ffloor_v)
+    GROUP BY bm.id
     ORDER BY bm.payment_submitted_at DESC, r.dorm_id ASC, r.room_number ASC
 ");
 $stmt->execute([
