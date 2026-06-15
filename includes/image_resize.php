@@ -21,18 +21,18 @@ function resizeAndSave(string $src, string $dest, int $maxDim = 800, int $qualit
 
     [$origW, $origH, $type] = $info;
 
-    // Already within limit — skip resize, just copy
-    if ($origW <= $maxDim && $origH <= $maxDim) {
-        return copy($src, $dest);
+    // Check EXIF orientation
+    $orientation = 1;
+    if ($type === IMAGETYPE_JPEG && function_exists('exif_read_data')) {
+        $exif = @exif_read_data($src);
+        if (!empty($exif['Orientation'])) {
+            $orientation = $exif['Orientation'];
+        }
     }
 
-    // Scale proportionally
-    if ($origW >= $origH) {
-        $newW = $maxDim;
-        $newH = (int)round($origH * $maxDim / $origW);
-    } else {
-        $newH = $maxDim;
-        $newW = (int)round($origW * $maxDim / $origH);
+    // Already within limit and no rotation needed — skip resize, just copy
+    if ($origW <= $maxDim && $origH <= $maxDim && $orientation == 1) {
+        return copy($src, $dest);
     }
 
     $srcImg = match($type) {
@@ -45,6 +45,37 @@ function resizeAndSave(string $src, string $dest, int $maxDim = 800, int $qualit
 
     if (!$srcImg) {
         return copy($src, $dest);
+    }
+
+    // Apply EXIF rotation if needed
+    if ($orientation != 1) {
+        switch ($orientation) {
+            case 3:
+                $srcImg = imagerotate($srcImg, 180, 0);
+                break;
+            case 6:
+                $srcImg = imagerotate($srcImg, -90, 0);
+                $tmp = $origW; $origW = $origH; $origH = $tmp;
+                break;
+            case 8:
+                $srcImg = imagerotate($srcImg, 90, 0);
+                $tmp = $origW; $origW = $origH; $origH = $tmp;
+                break;
+        }
+    }
+
+    // Scale proportionally
+    if ($origW > $maxDim || $origH > $maxDim) {
+        if ($origW >= $origH) {
+            $newW = $maxDim;
+            $newH = (int)round($origH * $maxDim / $origW);
+        } else {
+            $newH = $maxDim;
+            $newW = (int)round($origW * $maxDim / $origH);
+        }
+    } else {
+        $newW = $origW;
+        $newH = $origH;
     }
 
     $dstImg = imagecreatetruecolor($newW, $newH);
