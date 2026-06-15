@@ -139,7 +139,7 @@ if ($cycle_id) {
                bm.water_submitted_at,
                r.room_number, r.id AS room_id, r.dorm_id,
                d.name AS dorm_name,
-               s.name AS student_name
+               GROUP_CONCAT(s.name SEPARATOR ', ') AS student_name
         FROM bill_meters bm
         JOIN rooms r ON r.id = bm.room_id
         JOIN dorms d ON d.id = r.dorm_id
@@ -147,6 +147,7 @@ if ($cycle_id) {
         WHERE bm.cycle_id = :cid AND bm.water_status = 'review'
           AND (:fdorm_c = 0 OR r.dorm_id = :fdorm_v)
           AND (:ffloor_c = 0 OR r.floor = :ffloor_v)
+        GROUP BY bm.id
         ORDER BY r.dorm_id ASC, r.room_number ASC
     ");
     $stmt->execute([
@@ -171,7 +172,7 @@ if ($cycle_id) {
     try {
         $nmStmt = $pdo->prepare("
             SELECT r.id AS room_id, r.room_number,
-                   s.name AS student_name,
+                   GROUP_CONCAT(s.name SEPARATOR ', ') AS student_name,
                    COALESCE(
                        (SELECT bm2.water_curr
                         FROM bill_meters bm2
@@ -187,6 +188,7 @@ if ($cycle_id) {
             )
               AND (:fdorm_c = 0 OR r.dorm_id = :fdorm_v)
               AND (:ffloor_c = 0 OR r.floor = :ffloor_v)
+            GROUP BY r.id
             ORDER BY r.room_number ASC
         ");
         $nmStmt->execute([
@@ -201,7 +203,7 @@ if ($cycle_id) {
     } catch (PDOException $e) {
         $nmStmt = $pdo->prepare("
             SELECT r.id AS room_id, r.room_number,
-                   s.name AS student_name,
+                   GROUP_CONCAT(s.name SEPARATOR ', ') AS student_name,
                    (SELECT bm2.water_curr FROM bill_meters bm2
                     WHERE bm2.room_id = r.id AND bm2.water_status = 'verified'
                       AND bm2.cycle_id != ?
@@ -209,6 +211,7 @@ if ($cycle_id) {
             FROM rooms r
             LEFT JOIN students s ON s.room_id = r.id
             WHERE r.id NOT IN (SELECT room_id FROM bill_meters WHERE cycle_id = ?)
+            GROUP BY r.id
             ORDER BY r.room_number ASC
         ");
         $nmStmt->execute([$cycle_id, $cycle_id]);
