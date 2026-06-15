@@ -15,6 +15,20 @@ $_wSettings = $_wStmt->fetchAll(PDO::FETCH_KEY_PAIR);
 define('SUBMIT_DAY_START', (int)($_wSettings['read_window_start'] ?? 1));
 define('SUBMIT_DAY_END',   (int)($_wSettings['read_window_end']   ?? 30));
 
+function is_submission_open($cycle_id) {
+    if (!$cycle_id) return false;
+    list($yBE, $m) = explode('-', $cycle_id);
+    $cyc_year = (int)$yBE - 543;
+    $cyc_month = (int)$m;
+    $last_day_of_month = (int)date('t', strtotime(sprintf('%04d-%02d-01', $cyc_year, $cyc_month)));
+    $actual_start_day = min(SUBMIT_DAY_START, $last_day_of_month);
+    $start_date = new DateTime(sprintf('%04d-%02d-%02d', $cyc_year, $cyc_month, $actual_start_day));
+    $start_date->setTime(0, 0, 0);
+    $now = new DateTime();
+    $now->setTime(0, 0, 0);
+    return $now >= $start_date;
+}
+
 // =========================================================================
 // GET: ประวัติการชำระเงิน
 // =========================================================================
@@ -183,6 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_met
             'promptpay'    => $cfg['promptpay']   ?? null,
             'qr_image'     => $qrPath ?: null,
             'pending_bill' => $pendingBill,
+            'is_in_window' => is_submission_open($cycleRow['id'] ?? null),
         ]);
     } catch (PDOException $e) {
         error_log('get_meter_status: ' . $e->getMessage());
@@ -1389,7 +1404,7 @@ function fetchStudentAndRender(lineUid, displayName, pictureUrl) {
                                 water_reject_reason: sub ? sub.water_reject_reason : null,
                             };
 
-                            if (!isInWindow()) {
+                            if (!meterData.is_in_window) {
                                 renderHero('outside_window', { cycle_label: meterData.cycle_label });
                             } else if (!sub) {
                                 renderHero('pending', hData);
@@ -1402,7 +1417,7 @@ function fetchStudentAndRender(lineUid, displayName, pictureUrl) {
                             }
                         }
                     } else {
-                        if (!isInWindow()) {
+                        if (!meterData.is_in_window) {
                             renderHero('outside_window', { cycle_label: null });
                         } else {
                             renderHero('pending', { cycle_label: null });
@@ -1425,10 +1440,7 @@ function fetchStudentAndRender(lineUid, displayName, pictureUrl) {
         });
 }
 
-function isInWindow() {
-    var d = new Date().getDate();
-    return d >= DAY_START && d <= DAY_END;
-}
+
 
 // ── Photo input ──────────────────────────────────────────────────────────
 document.getElementById('meterPhotoInput').addEventListener('change', function() {
