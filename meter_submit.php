@@ -1128,7 +1128,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'submit_payment') {
         <!-- Form card (hidden until CTA click) -->
         <div class="form-card card d-none" id="meterFormCard">
             <div class="form-section-title">
-                <i class="bi bi-droplet"></i> กรอกค่ามิเตอร์น้ำ
+                <i class="bi bi-droplet"></i> กรอกเลขมิเตอร์น้ำ
             </div>
 
             <div class="mb-4">
@@ -1248,7 +1248,7 @@ function calcWater(curr, prev, rate) {
 function calcSummaryText(curr, prev, rate) {
     const c = calcWater(curr, prev, rate);
     if (!c) return null;
-    let txt = c.units.toFixed(2) + ' หน่วย';
+    let txt = c.units.toFixed(0) + ' หน่วย';
     if (c.amount != null) txt += ' · ≈' + c.amount.toFixed(0) + ' บาท';
     return txt;
 }
@@ -1295,11 +1295,11 @@ function renderHero(state, data) {
     } else if (state === 'review') {
         badge.innerHTML = '<span class="badge-pill badge-review"><span class="dot"></span>รออนุมัติ</span>';
         const calcLine = calcTxt
-            ? `<div class="calc-box"><i class="bi bi-calculator"></i> ${calcTxt} <span class="calc-note">(ประมาณการ)</span></div>`
+            ? `<div class="calc-box"><i class="bi bi-calculator"></i> ${calcTxt} </div>`
             : '';
         heroBody.innerHTML = `
             <h1 class="hero-heading">ส่งค่ามิเตอร์แล้ว</h1>
-            <p class="hero-sub">เลขที่ส่ง: <strong>${parseFloat(data.water_curr).toFixed(2)}</strong>${data.water_prev != null ? ' · ก่อนหน้า: ' + parseFloat(data.water_prev).toFixed(2) : ''}</p>
+            <p class="hero-sub">เลขที่ส่ง: <strong>${parseFloat(data.water_curr).toFixed(0)}</strong>${data.water_prev != null ? ' · ก่อนหน้า: ' + parseFloat(data.water_prev).toFixed(0) : ''}</p>
             ${calcLine}
             <button class="btn-cta gray" id="ctaBtn" style="margin-top:14px;">
                 <i class="bi bi-pencil-fill"></i> แก้ไขค่ามิเตอร์
@@ -1314,9 +1314,9 @@ function renderHero(state, data) {
             : '';
         heroBody.innerHTML = `
             <h1 class="hero-heading">ยืนยันค่ามิเตอร์แล้ว</h1>
-            <p class="hero-sub">เลขที่ส่ง: <strong>${parseFloat(data.water_curr).toFixed(2)}</strong>${data.water_prev != null ? ' · ก่อนหน้า: ' + parseFloat(data.water_prev).toFixed(2) : ''}</p>
+            <p class="hero-sub">เลขที่ส่ง: <strong>${parseFloat(data.water_curr).toFixed(0)}</strong>${data.water_prev != null ? ' · ก่อนหน้า: ' + parseFloat(data.water_prev).toFixed(0) : ''}</p>
             ${calcLine}`;
-        document.getElementById('waterCardStatus').textContent = calcTxt || ('ยืนยันแล้ว · ' + parseFloat(data.water_curr).toFixed(2) + ' หน่วย');
+        document.getElementById('waterCardStatus').textContent = calcTxt || ('ยืนยันแล้ว · ' + parseFloat(data.water_curr).toFixed(0) + ' หน่วย');
 
     } else if (state === 'reject') {
         badge.innerHTML = '<span class="badge-pill badge-reject"><span class="dot"></span>ส่งคืน</span>';
@@ -1534,7 +1534,7 @@ document.getElementById('submitBtn').addEventListener('click', async function() 
 
     const conf = await Swal.fire({
         title: 'ยืนยันการส่งค่ามิเตอร์?',
-        html:  `<div style="font-size:.92rem;">ห้อง <strong>${currentUser.room_number}</strong> · ค่าน้ำ <strong>${parseFloat(waterInput.value).toFixed(2)}</strong> หน่วย</div>`,
+        html:  `<div style="font-size:.92rem;">ห้อง <strong>${currentUser.room_number}</strong> · เลขมิเตอร์น้ำ <strong>${parseFloat(waterInput.value).toFixed(0)}</strong> หน่วย</div>`,
         icon:  'question',
         showCancelButton:   true,
         confirmButtonText:  'ยืนยัน ส่งเลย',
@@ -1702,11 +1702,11 @@ function renderBillSummary(meterData, sub) {
     // ค่าน้ำ
     const wUnits = parseFloat(sub.water_curr) - parseFloat(meterData.water_prev || 0);
     const wAmt   = meterData.rate_water ? wUnits * parseFloat(meterData.rate_water) : null;
-    document.getElementById('bscWaterUnits').textContent = fmt(wUnits) + ' หน่วย';
+    document.getElementById('bscWaterUnits').textContent = wUnits.toFixed(0) + ' หน่วย';
     document.getElementById('bscWaterAmt').textContent   = wAmt != null ? fmtB(wAmt) + ' บาท' : '– บาท';
 
     // อัปเดตการ์ดสรุปค่าน้ำ (section-wrap)
-    let wCardTxt = wUnits.toFixed(2) + ' หน่วย';
+    let wCardTxt = wUnits.toFixed(0) + ' หน่วย';
     if (wAmt != null) wCardTxt += ' · ≈' + fmtB(wAmt) + ' บาท';
     document.getElementById('waterCardStatus').textContent = wCardTxt;
 
@@ -1778,7 +1778,7 @@ function openHistory() {
             }
             body.innerHTML = data.history.map(h => {
                 const fmtB = n => n != null ? '฿' + Math.round(n).toLocaleString('th-TH') : '–';
-                const fmtU = n => n != null ? parseFloat(n).toFixed(2) + ' หน่วย' : '–';
+                const fmtU = n => n != null ? parseFloat(n).toFixed(0) + ' หน่วย' : '–';
 
                 let badge = '';
                 if (h.payment_status === 'confirmed') {
