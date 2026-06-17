@@ -1744,7 +1744,7 @@ function renderBillSummary(meterData, sub) {
         ? `<div class="bsc-qr-wrap">
                <img src="${escapeHtml(meterData.qr_image)}" alt="QR Code">
                <div class="bsc-qr-hint">สแกน QR เพื่อชำระเงิน</div>
-               <a href="download_qr.php?file=${encodeURIComponent(meterData.qr_image)}" class="btn-dl-qr">
+               <a href="download_qr.php?file=${encodeURIComponent(meterData.qr_image)}" target="_blank" class="btn-dl-qr">
                    <i class="bi bi-download"></i> บันทึก QR Code
                </a>
            </div>`
