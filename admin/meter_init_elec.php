@@ -251,7 +251,7 @@ include 'includes/header.php';
                             <input type="hidden" name="ajax"    value="1">
                             <input type="number" name="elec_init" class="curr-input"
                                    value="<?= $r['elec_meter_init'] !== null ? (float)$r['elec_meter_init'] : '' ?>"
-                                   placeholder="0.00" min="0" step="0.01" required>
+                                   placeholder="0" min="0" step="1" inputmode="numeric" required>
                             <button type="submit" class="btn-save">
                                 <i class="bi bi-check2"></i> บันทึก
                             </button>
@@ -284,7 +284,7 @@ async function saveInit(form, event) {
             const roomId  = form.querySelector('[name=room_id]').value;
             const newVal  = parseFloat(form.querySelector('[name=elec_init]').value);
             const valCell = document.getElementById('initval-' + roomId);
-            if (valCell) valCell.innerHTML = `<span class="has-init">${newVal.toFixed(2)}</span>`;
+            if (valCell) valCell.innerHTML = `<span class="has-init">${newVal.toFixed(0)}</span>`;
 
             btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> บันทึกแล้ว';
             btn.style.background = '#059669';

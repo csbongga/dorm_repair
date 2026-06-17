@@ -709,7 +709,7 @@ include 'includes/header.php';
                         </label>
                         <input type="number" name="water_meter_init" id="editRoomWaterInit"
                                class="form-control form-control-sm"
-                               placeholder="เว้นว่างถ้าไม่มี" min="0" step="0.01">
+                               placeholder="เว้นว่างถ้าไม่มี" min="0" step="1" inputmode="numeric">
                         <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">
                             ใช้แสดง "เลขครั้งก่อน" ในหน้าส่งมิเตอร์สำหรับเดือนแรก
                         </div>

@@ -13,20 +13,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $meter_id = (int)($_POST['meter_id'] ?? 0);
 
     try {
+        $rateRow = $pdo->query("SELECT value FROM bill_settings WHERE setting_key = 'rate_water'")->fetch();
+        $water_rate = $rateRow ? (float)$rateRow['value'] : 0;
+
         if ($action === 'verify' && $meter_id > 0) {
             $corrected = trim($_POST['water_curr'] ?? '');
             if ($corrected !== '' && is_numeric($corrected)) {
                 $pdo->prepare("
                     UPDATE bill_meters
-                    SET water_curr = ?, water_status = 'verified', water_verified_at = NOW()
+                    SET water_curr = ?, 
+                        water_rate = ?,
+                        water_amt = IF(water_prev IS NOT NULL, (? - water_prev) * ?, NULL),
+                        water_status = 'verified', 
+                        water_verified_at = NOW()
                     WHERE id = ? AND water_status = 'review'
-                ")->execute([$corrected, $meter_id]);
+                ")->execute([$corrected, $water_rate, $corrected, $water_rate, $meter_id]);
             } else {
                 $pdo->prepare("
                     UPDATE bill_meters
-                    SET water_status = 'verified', water_verified_at = NOW()
+                    SET water_rate = ?,
+                        water_amt = IF(water_curr IS NOT NULL AND water_prev IS NOT NULL, (water_curr - water_prev) * ?, NULL),
+                        water_status = 'verified', 
+                        water_verified_at = NOW()
                     WHERE id = ? AND water_status = 'review'
-                ")->execute([$meter_id]);
+                ")->execute([$water_rate, $water_rate, $meter_id]);
             }
 
         } elseif ($action === 'reject' && $meter_id > 0) {
@@ -71,20 +81,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ex->execute([$cycle_id_p, $room_id_p]);
                 $existing = $ex->fetchColumn();
 
+                $water_amt = null;
+                if ($water_prev !== null && is_numeric($water_curr)) {
+                    $water_amt = ($water_curr - $water_prev) * $water_rate;
+                }
+
                 if ($existing) {
                     $pdo->prepare("
                         UPDATE bill_meters
                         SET water_prev = ?, water_curr = ?,
+                            water_rate = ?, water_amt = ?,
                             water_status = 'verified', water_verified_at = NOW(),
                             water_photo = NULL, water_submitted_at = NOW()
                         WHERE id = ?
-                    ")->execute([$water_prev, $water_curr, $existing]);
+                    ")->execute([$water_prev, $water_curr, $water_rate, $water_amt, $existing]);
                 } else {
                     $pdo->prepare("
                         INSERT INTO bill_meters
-                            (cycle_id, room_id, water_prev, water_curr, water_status, water_submitted_at, water_verified_at)
-                        VALUES (?, ?, ?, ?, 'verified', NOW(), NOW())
-                    ")->execute([$cycle_id_p, $room_id_p, $water_prev, $water_curr]);
+                            (cycle_id, room_id, water_prev, water_curr, water_rate, water_amt, water_status, water_submitted_at, water_verified_at)
+                        VALUES (?, ?, ?, ?, ?, ?, 'verified', NOW(), NOW())
+                    ")->execute([$cycle_id_p, $room_id_p, $water_prev, $water_curr, $water_rate, $water_amt]);
                 }
 
                 if (!empty($_POST['ajax'])) {
@@ -774,7 +790,7 @@ include 'includes/header.php';
                             <input type="hidden" name="room_id"  value="<?= $nr['room_id'] ?>">
                             <input type="hidden" name="cycle_id" value="<?= htmlspecialchars($cycle_id) ?>">
                             <input type="number" name="water_curr" class="curr-input"
-                                   placeholder="0.00" min="0" step="0.01" required>
+                                   placeholder="0" min="0" step="1" inputmode="numeric" required>
                             <button type="submit" class="btn-admin-save">
                                 <i class="bi bi-check2"></i> บันทึก
                             </button>
@@ -841,7 +857,7 @@ function confirmVerify(id, room, currVal, photoUrl) {
                        เลขมิเตอร์ (แก้ไขได้หากผู้เช่าพิมผิด)
                    </label>
                    <input id="swalCurrInput" type="number" value="${currVal}"
-                          step="0.01" min="0"
+                          step="1" inputmode="numeric" min="0"
                           class="swal2-input" style="font-family:Kanit,sans-serif;margin-top:6px;">
                </div>`,
         width: 420,

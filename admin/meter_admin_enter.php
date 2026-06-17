@@ -319,7 +319,7 @@ include 'includes/header.php';
                             <input type="hidden" name="room_id"  value="<?= $nr['room_id'] ?>">
                             <input type="hidden" name="cycle_id" value="<?= htmlspecialchars($cycle_id) ?>">
                             <input type="number" name="water_curr" class="curr-input"
-                                   placeholder="0.00" min="0" step="0.01" required>
+                                   placeholder="0" min="0" step="1" inputmode="numeric" required>
                             <button type="submit" class="btn-admin-save">
                                 <i class="bi bi-check2"></i> บันทึก
                             </button>

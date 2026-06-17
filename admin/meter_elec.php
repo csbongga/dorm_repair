@@ -45,18 +45,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['ajax'])) {
             $ex->execute([$cycle_id_p, $room_id_p]);
             $existing = $ex->fetchColumn();
 
+            $rateRow = $pdo->query("SELECT value FROM bill_settings WHERE setting_key = 'rate_elec'")->fetch();
+            $elec_rate = $rateRow ? (float)$rateRow['value'] : 0;
+            $elec_amt = null;
+            if ($elec_prev !== null && is_numeric($elec_curr)) {
+                $elec_amt = ($elec_curr - $elec_prev) * $elec_rate;
+            }
+
             if ($existing) {
                 $pdo->prepare("
                     UPDATE bill_meters
-                    SET elec_prev = ?, elec_curr = ?, elec_entered = 1, elec_entered_at = NOW()
+                    SET elec_prev = ?, elec_curr = ?, elec_rate = ?, elec_amt = ?, elec_entered = 1, elec_entered_at = NOW()
                     WHERE id = ?
-                ")->execute([$elec_prev, $elec_curr, $existing]);
+                ")->execute([$elec_prev, $elec_curr, $elec_rate, $elec_amt, $existing]);
             } else {
                 $pdo->prepare("
                     INSERT INTO bill_meters
-                        (cycle_id, room_id, elec_prev, elec_curr, elec_entered, elec_entered_at)
-                    VALUES (?, ?, ?, ?, 1, NOW())
-                ")->execute([$cycle_id_p, $room_id_p, $elec_prev, $elec_curr]);
+                        (cycle_id, room_id, elec_prev, elec_curr, elec_rate, elec_amt, elec_entered, elec_entered_at)
+                    VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
+                ")->execute([$cycle_id_p, $room_id_p, $elec_prev, $elec_curr, $elec_rate, $elec_amt]);
             }
 
             echo json_encode(['ok' => true]);
@@ -354,7 +361,7 @@ include 'includes/header.php';
                             <input type="hidden" name="cycle_id" value="<?= htmlspecialchars($cycle_id) ?>">
                             <input type="hidden" name="ajax"     value="1">
                             <input type="number" name="elec_curr" class="curr-input"
-                                   placeholder="0.00" min="0" step="0.01" required>
+                                   placeholder="0" min="0" step="1" inputmode="numeric" required>
                             <button type="submit" class="btn-save">
                                 <i class="bi bi-check2"></i> บันทึก
                             </button>

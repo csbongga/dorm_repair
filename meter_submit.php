@@ -1383,7 +1383,7 @@ function fetchStudentAndRender(lineUid, displayName, pictureUrl) {
                         const elecEl = document.getElementById('elecCardStatus');
                         if (meterData.elec_entered && meterData.elec_curr != null && meterData.elec_prev != null) {
                             const units = parseFloat(meterData.elec_curr) - parseFloat(meterData.elec_prev);
-                            let txt = units.toFixed(2) + ' หน่วย';
+                            let txt = units.toFixed(0) + ' หน่วย';
                             if (meterData.rate_elec) txt += ' · ≈' + (units * parseFloat(meterData.rate_elec)).toFixed(0) + ' บาท';
                             elecEl.textContent = txt;
                         } else {
@@ -1499,7 +1499,7 @@ document.getElementById('waterCurrInput').addEventListener('input', function() {
     const val  = parseFloat(this.value);
     const errEl = document.getElementById('waterCurrError');
     if (this.value.trim() && !isNaN(val) && currentUser && currentUser.water_prev != null && val < currentUser.water_prev) {
-        errEl.textContent = `ค่าปัจจุบันต้องไม่ต่ำกว่าค่าครั้งก่อน (${currentUser.water_prev.toFixed(2)})`;
+        errEl.textContent = `ค่าปัจจุบันต้องไม่ต่ำกว่าค่าครั้งก่อน (${Math.floor(currentUser.water_prev)})`;
         this.classList.add('is-invalid');
     } else {
         this.classList.remove('is-invalid');
@@ -1713,7 +1713,7 @@ function renderBillSummary(meterData, sub) {
     // ค่าไฟ
     const eUnits = parseFloat(meterData.elec_curr) - parseFloat(meterData.elec_prev || 0);
     const eAmt   = meterData.rate_elec ? eUnits * parseFloat(meterData.rate_elec) : null;
-    document.getElementById('bscElecUnits').textContent = fmt(eUnits) + ' หน่วย';
+    document.getElementById('bscElecUnits').textContent = eUnits.toFixed(0) + ' หน่วย';
     document.getElementById('bscElecAmt').textContent   = eAmt != null ? fmtB(eAmt) + ' บาท' : '– บาท';
 
     // ค่าปรับ
