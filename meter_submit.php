@@ -1137,10 +1137,10 @@ if (isset($_POST['action']) && $_POST['action'] === 'submit_payment') {
             </div>
 
             <div class="mb-4">
-                <div class="field-label"><i class="bi bi-droplet"></i> ค่ามิเตอร์น้ำปัจจุบัน (หน่วย)</div>
+                <div class="field-label"><i class="bi bi-droplet"></i> เลขมิเตอร์น้ำปัจจุบัน (หน่วย)</div>
                 <input type="number" id="waterCurrInput" class="field-input"
-                    placeholder="เช่น 1234.56" min="0" step="0.01" inputmode="decimal">
-                <div class="field-error" id="waterCurrError">กรุณากรอกค่ามิเตอร์น้ำที่ถูกต้อง</div>
+                    placeholder="เช่น 1234" min="0" step="1" inputmode="numeric">
+                <div class="field-error" id="waterCurrError">กรุณากรอกเลขมิเตอร์น้ำที่ถูกต้อง</div>
             </div>
 
             <div class="mb-4">
@@ -1513,16 +1513,16 @@ document.getElementById('submitBtn').addEventListener('click', async function() 
     let valid = true;
 
     waterInput.classList.remove('is-invalid');
-    document.getElementById('waterCurrError').textContent = 'กรุณากรอกค่ามิเตอร์น้ำที่ถูกต้อง';
+    document.getElementById('waterCurrError').textContent = 'กรุณากรอกเลขมิเตอร์น้ำที่ถูกต้อง';
     document.getElementById('photoError').style.display = 'none';
 
-    const val = parseFloat(waterInput.value);
-    if (!waterInput.value.trim() || isNaN(val) || val < 0) {
+    const val = parseInt(waterInput.value, 10);
+    if (!waterInput.value.trim() || isNaN(val) || val < 0 || waterInput.value.includes('.')) {
         waterInput.classList.add('is-invalid');
         valid = false;
-    } else if (currentUser.water_prev != null && val < currentUser.water_prev) {
+    } else if (currentUser.water_prev != null && val < Math.floor(currentUser.water_prev)) {
         document.getElementById('waterCurrError').textContent =
-            `ค่าปัจจุบันต้องไม่ต่ำกว่าค่าครั้งก่อน (${currentUser.water_prev.toFixed(2)})`;
+            `เลขปัจจุบันต้องไม่ต่ำกว่าครั้งก่อน (${Math.floor(currentUser.water_prev)})`;
         waterInput.classList.add('is-invalid');
         valid = false;
     }
