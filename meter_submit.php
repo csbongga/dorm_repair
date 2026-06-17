@@ -44,8 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_pay
 
         $stmt = $pdo->prepare("
             SELECT bc.label,
-                   bm.water_curr, bm.water_prev, bm.water_fine,
-                   bm.elec_curr, bm.elec_prev,
+                   bm.water_curr, bm.water_prev, bm.water_fine, bm.water_amt, bm.water_rate,
+                   bm.elec_curr, bm.elec_prev, bm.elec_amt, bm.elec_rate,
                    bm.payment_status, bm.payment_submitted_at,
                    bm.payment_confirmed_at
             FROM bill_meters bm
@@ -63,8 +63,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_pay
                 ? (float)$r['water_curr'] - (float)$r['water_prev'] : null;
             $eUnits = ($r['elec_curr'] !== null && $r['elec_prev'] !== null)
                 ? (float)$r['elec_curr'] - (float)$r['elec_prev'] : null;
-            $wAmt = ($wUnits !== null && $rateW > 0) ? $wUnits * $rateW : null;
-            $eAmt = ($eUnits !== null && $rateE > 0) ? $eUnits * $rateE : null;
+            
+            // ใช้ยอดที่บันทึกไว้ใน DB (ถ้ามี) ถ้าไม่มีให้คูณใหม่ด้วยเรทล่าสุด (fallback)
+            $wAmt = $r['water_amt'] !== null ? (float)$r['water_amt'] : (($wUnits !== null && $rateW > 0) ? $wUnits * $rateW : null);
+            $eAmt = $r['elec_amt'] !== null ? (float)$r['elec_amt'] : (($eUnits !== null && $rateE > 0) ? $eUnits * $rateE : null);
+            
             $fine = (float)($r['water_fine'] ?? 0);
             $history[] = [
                 'label'          => $r['label'],
@@ -102,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_met
         if ($cycleRow) {
             try {
                 $subStmt = $pdo->prepare("
-                    SELECT water_status, water_curr, water_fine, water_submitted_at, water_reject_reason,
+                    SELECT water_status, water_curr, water_fine, water_amt, water_rate, water_submitted_at, water_reject_reason,
                            payment_slip, payment_status, payment_submitted_at
                     FROM bill_meters
                     WHERE cycle_id = :cid AND room_id = :rid
@@ -112,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_met
             } catch (PDOException $e2) {
                 // fallback: payment columns ยังไม่มีใน DB
                 $subStmt = $pdo->prepare("
-                    SELECT water_status, water_curr, water_fine, water_submitted_at, water_reject_reason
+                    SELECT water_status, water_curr, water_fine, water_amt, water_rate, water_submitted_at, water_reject_reason
                     FROM bill_meters
                     WHERE cycle_id = :cid AND room_id = :rid
                     LIMIT 1
@@ -150,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_met
             if ($qrPath && !file_exists(__DIR__ . '/' . $qrPath)) $qrPath = '';
 
             $elecStmt = $pdo->prepare("
-                SELECT elec_curr, elec_prev, elec_entered
+                SELECT elec_entered, elec_curr, elec_prev, elec_amt, elec_rate
                 FROM bill_meters
                 WHERE cycle_id = :cid AND room_id = :rid
                 LIMIT 1
@@ -164,6 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_met
         try {
             $pbStmt = $pdo->prepare("
                 SELECT bm.water_curr, bm.water_prev, bm.water_fine, bm.elec_curr, bm.elec_prev,
+                       bm.water_amt, bm.elec_amt, bm.water_rate, bm.elec_rate,
                        bm.payment_status, bm.payment_slip, bm.payment_submitted_at,
                        bc.label AS cycle_label
                 FROM bill_meters bm
@@ -190,6 +194,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_met
             'elec_curr'    => $elecRow['elec_curr']  ?? null,
             'elec_prev'    => $elecRow['elec_prev']  ?? null,
             'rate_elec'    => $rateElec ?? null,
+            'water_amt'    => $submission['water_amt'] ?? null,
+            'elec_amt'     => $elecRow['elec_amt'] ?? null,
             'water_fine'   => $submission['water_fine'] ?? null,
             'bank_name'    => $cfg['bank_name']   ?? null,
             'bank_holder'  => $cfg['bank_holder'] ?? null,
@@ -250,7 +256,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'check_user') {
         if ($cycleRow) {
             try {
                 $subStmt = $pdo->prepare("
-                    SELECT water_status, water_curr, water_fine, water_submitted_at, water_reject_reason,
+                    SELECT water_status, water_curr, water_fine, water_amt, water_rate, water_submitted_at, water_reject_reason,
                            payment_slip, payment_status, payment_submitted_at
                     FROM bill_meters
                     WHERE cycle_id = :cid AND room_id = :rid
@@ -259,7 +265,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'check_user') {
                 $subStmt->execute(['cid' => $cycleRow['id'], 'rid' => $student['room_id']]);
             } catch (PDOException $e2) {
                 $subStmt = $pdo->prepare("
-                    SELECT water_status, water_curr, water_fine, water_submitted_at, water_reject_reason
+                    SELECT water_status, water_curr, water_fine, water_amt, water_rate, water_submitted_at, water_reject_reason
                     FROM bill_meters
                     WHERE cycle_id = :cid AND room_id = :rid
                     LIMIT 1
@@ -422,6 +428,15 @@ if (isset($_POST['action']) && $_POST['action'] === 'submit_meter') {
             exit;
         }
 
+        // คำนวณ water_amt ล่วงหน้าเพื่อเซฟลง DB
+        $ratesStmt = $pdo->query("SELECT setting_key, value FROM bill_settings WHERE setting_key = 'rate_water'");
+        $rateRow = $ratesStmt->fetch();
+        $water_rate = $rateRow ? (float)$rateRow['value'] : 0;
+        $water_amt = null;
+        if ($water_prev !== null && $water_curr !== null) {
+            $water_amt = ($water_curr - $water_prev) * $water_rate;
+        }
+
         $photo_path = UPLOAD_WEB_PATH . $filename;
 
         if ($existing) {
@@ -436,14 +451,23 @@ if (isset($_POST['action']) && $_POST['action'] === 'submit_meter') {
                     water_status         = 'review',
                     water_submitted_at   = NOW(),
                     water_reject_reason  = NULL,
-                    water_fine           = :fine
+                    water_fine           = :fine,
+                    water_rate           = :wrate,
+                    water_amt            = :wamt
                 WHERE id = :id
-            ")->execute(['prev' => $water_prev, 'curr' => $water_curr, 'photo' => $photo_path, 'fine' => $water_fine, 'id' => $existing['id']]);
+            ")->execute([
+                'prev' => $water_prev, 'curr' => $water_curr, 'photo' => $photo_path, 
+                'fine' => $water_fine, 'wrate' => $water_rate, 'wamt' => $water_amt, 
+                'id' => $existing['id']
+            ]);
         } else {
             $pdo->prepare("
-                INSERT INTO bill_meters (cycle_id, room_id, water_prev, water_curr, water_photo, water_status, water_submitted_at, water_fine)
-                VALUES (:cid, :rid, :prev, :curr, :photo, 'review', NOW(), :fine)
-            ")->execute(['cid' => $cycle_id, 'rid' => $room_id, 'prev' => $water_prev, 'curr' => $water_curr, 'photo' => $photo_path, 'fine' => $water_fine]);
+                INSERT INTO bill_meters (cycle_id, room_id, water_prev, water_curr, water_photo, water_status, water_submitted_at, water_fine, water_rate, water_amt)
+                VALUES (:cid, :rid, :prev, :curr, :photo, 'review', NOW(), :fine, :wrate, :wamt)
+            ")->execute([
+                'cid' => $cycle_id, 'rid' => $room_id, 'prev' => $water_prev, 'curr' => $water_curr, 
+                'photo' => $photo_path, 'fine' => $water_fine, 'wrate' => $water_rate, 'wamt' => $water_amt
+            ]);
         }
 
         echo json_encode(['success' => true]);
@@ -1062,7 +1086,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'submit_payment') {
                 <div class="pc-header"><i class="bi bi-send-check-fill"></i> แจ้งการชำระเงิน</div>
                 <p class="pc-hint">อัปโหลดสลิปการโอนเงินเพื่อแจ้งให้ผู้ดูแลตรวจสอบ</p>
                 <div class="photo-area" id="slipUploadArea">
-                    <input type="file" id="slipPhotoInput" accept=".jpg,.jpeg,.png" capture="environment">
+                    <input type="file" id="slipPhotoInput" accept=".jpg,.jpeg,.png">
                     <div id="slipPlaceholder">
                         <div class="pu-icon"><i class="bi bi-cloud-arrow-up"></i></div>
                         <div class="pu-text">แตะเพื่อถ่ายหรืออัปโหลดสลิป</div>
@@ -1195,6 +1219,7 @@ window.onerror = function(msg, src, line) {
     document.getElementById('loadingText').textContent = '❌ JS Error: ' + msg + ' (L' + line + ')';
     return false;
 };
+
 
 const DAY_START = <?= SUBMIT_DAY_START ?>;
 const DAY_END   = <?= SUBMIT_DAY_END ?>;
@@ -1719,7 +1744,7 @@ function renderBillSummary(meterData, sub) {
         ? `<div class="bsc-qr-wrap">
                <img src="${escapeHtml(meterData.qr_image)}" alt="QR Code">
                <div class="bsc-qr-hint">สแกน QR เพื่อชำระเงิน</div>
-               <a href="${escapeHtml(meterData.qr_image)}" download class="btn-dl-qr">
+               <a href="download_qr.php?file=${encodeURIComponent(meterData.qr_image)}" class="btn-dl-qr">
                    <i class="bi bi-download"></i> บันทึก QR Code
                </a>
            </div>`
