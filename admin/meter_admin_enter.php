@@ -309,7 +309,7 @@ include 'includes/header.php';
                     <td><?= htmlspecialchars($nr['student_name'] ?? '–') ?></td>
                     <td>
                         <?php if ($nr['water_prev'] !== null): ?>
-                            <span class="prev-chip"><?= number_format((float)$nr['water_prev'], 2) ?></span>
+                            <span class="prev-chip"><?= number_format((float)$nr['water_prev'], 0) ?></span>
                         <?php else: ?>
                             <span style="color:#94a3b8;font-size:.8rem;">ไม่มีข้อมูล</span>
                         <?php endif; ?>

@@ -699,7 +699,7 @@ include 'includes/header.php';
                         <td>ใช้ไป</td>
                         <td class="td-units">
                             <?php if ($units !== null): ?>
-                                <?= number_format($units, 2) ?> <span style="font-size:.8rem;font-weight:400;">หน่วย</span>
+                                <?= number_format($units, 0) ?> <span style="font-size:.8rem;font-weight:400;">หน่วย</span>
                             <?php else: ?>
                                 <span class="td-na">คำนวณไม่ได้</span>
                             <?php endif; ?>
@@ -778,7 +778,7 @@ include 'includes/header.php';
                     <td><span class="room-pill"><?= htmlspecialchars($nr['room_number']) ?></span></td>
                     <td>
                         <?php if ($nr['water_prev'] !== null): ?>
-                            <span class="prev-chip"><?= number_format((float)$nr['water_prev'], 2) ?></span>
+                            <span class="prev-chip"><?= number_format((float)$nr['water_prev'], 0) ?></span>
                         <?php else: ?>
                             <span style="color:#94a3b8;font-size:.8rem;">ไม่มีข้อมูล</span>
                         <?php endif; ?>

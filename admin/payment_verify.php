@@ -77,8 +77,8 @@ $confirmedCount  = 0;
 // ดึงสลิปรอตรวจสอบจากทุกรอบ (ไม่จำกัดรอบปัจจุบัน)
 $stmt = $pdo->prepare("
     SELECT bm.id,
-           bm.water_curr, bm.water_prev, bm.water_fine,
-           bm.elec_curr, bm.elec_prev,
+           bm.water_curr, bm.water_prev, bm.water_fine, bm.water_amt,
+           bm.elec_curr, bm.elec_prev, bm.elec_amt,
            bm.payment_slip, bm.payment_submitted_at,
            r.room_number, r.id AS room_id, r.dorm_id,
            d.name AS dorm_name,
@@ -415,12 +415,12 @@ include 'includes/header.php';
     $wCurr  = $p['water_curr'] !== null ? (float)$p['water_curr'] : null;
     $wPrev  = $p['water_prev'] !== null ? (float)$p['water_prev'] : null;
     $wUnits = ($wCurr !== null && $wPrev !== null) ? $wCurr - $wPrev : null;
-    $wAmt   = ($wUnits !== null && $rateWater > 0) ? $wUnits * $rateWater : null;
+    $wAmt   = $p['water_amt'] !== null ? (float)$p['water_amt'] : (($wUnits !== null && $rateWater > 0) ? $wUnits * $rateWater : null);
 
     $eCurr  = $p['elec_curr'] !== null ? (float)$p['elec_curr'] : null;
     $ePrev  = $p['elec_prev'] !== null ? (float)$p['elec_prev'] : null;
     $eUnits = ($eCurr !== null && $ePrev !== null) ? $eCurr - $ePrev : null;
-    $eAmt   = ($eUnits !== null && $rateElec > 0) ? $eUnits * $rateElec : null;
+    $eAmt   = $p['elec_amt'] !== null ? (float)$p['elec_amt'] : (($eUnits !== null && $rateElec > 0) ? $eUnits * $rateElec : null);
     $fine   = $p['water_fine'] !== null ? (float)$p['water_fine'] : 0;
 
     $total    = ($wAmt ?? 0) + ($eAmt ?? 0) + $fine;
@@ -467,7 +467,7 @@ include 'includes/header.php';
                         <td>
                             <?php if ($wAmt !== null): ?>
                                 ฿<?= number_format($wAmt, 0) ?>
-                                <div class="td-units"><?= number_format($wUnits, 2) ?> หน่วย</div>
+                                <div class="td-units"><?= number_format($wUnits, 0) ?> หน่วย</div>
                             <?php else: ?>
                                 <span class="td-na">–</span>
                             <?php endif; ?>
@@ -478,7 +478,7 @@ include 'includes/header.php';
                         <td>
                             <?php if ($eAmt !== null): ?>
                                 ฿<?= number_format($eAmt, 0) ?>
-                                <div class="td-units"><?= number_format($eUnits, 2) ?> หน่วย</div>
+                                <div class="td-units"><?= number_format($eUnits, 0) ?> หน่วย</div>
                             <?php else: ?>
                                 <span class="td-na">–</span>
                             <?php endif; ?>

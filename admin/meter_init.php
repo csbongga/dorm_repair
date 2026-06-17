@@ -255,7 +255,7 @@ include 'includes/header.php';
                     <td><span class="room-pill"><?= htmlspecialchars($r['room_number']) ?></span></td>
                     <td id="initval-<?= $r['room_id'] ?>">
                         <?php if ($r['water_meter_init'] !== null): ?>
-                            <span class="has-init"><?= number_format((float)$r['water_meter_init'], 2) ?></span>
+                            <span class="has-init"><?= number_format((float)$r['water_meter_init'], 0) ?></span>
                         <?php else: ?>
                             <span class="no-init">ยังไม่ได้ตั้งค่า</span>
                         <?php endif; ?>

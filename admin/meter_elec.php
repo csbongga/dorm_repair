@@ -350,7 +350,7 @@ include 'includes/header.php';
                     <td><span class="room-pill"><?= htmlspecialchars($nr['room_number']) ?></span></td>
                     <td>
                         <?php if ($nr['elec_prev'] !== null): ?>
-                            <span class="prev-chip"><?= number_format((float)$nr['elec_prev'], 2) ?></span>
+                            <span class="prev-chip"><?= number_format((float)$nr['elec_prev'], 0) ?></span>
                         <?php else: ?>
                             <span style="color:#94a3b8;font-size:.8rem;">ไม่มีข้อมูล</span>
                         <?php endif; ?>
