@@ -200,7 +200,7 @@ if ($cycle_id) {
             FROM rooms r
             LEFT JOIN students s ON s.room_id = r.id
             WHERE r.id NOT IN (
-                SELECT room_id FROM bill_meters WHERE cycle_id = :cid2
+                SELECT room_id FROM bill_meters WHERE cycle_id = :cid2 AND (water_status = 'review' OR water_status = 'verified')
             )
               AND (:fdorm_c = 0 OR r.dorm_id = :fdorm_v)
               AND (:ffloor_c = 0 OR r.floor = :ffloor_v)
@@ -226,7 +226,7 @@ if ($cycle_id) {
                     ORDER BY bm2.cycle_id DESC LIMIT 1) AS water_prev
             FROM rooms r
             LEFT JOIN students s ON s.room_id = r.id
-            WHERE r.id NOT IN (SELECT room_id FROM bill_meters WHERE cycle_id = ?)
+            WHERE r.id NOT IN (SELECT room_id FROM bill_meters WHERE cycle_id = ? AND (water_status = 'review' OR water_status = 'verified'))
             GROUP BY r.id
             ORDER BY r.room_number ASC
         ");
