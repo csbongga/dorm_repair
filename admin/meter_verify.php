@@ -179,7 +179,7 @@ if ($cycle_id) {
     $vc->execute([$cycle_id]);
     $verifiedCount = (int)$vc->fetchColumn();
 
-    $tc = $pdo->prepare("SELECT COUNT(*) FROM bill_meters WHERE cycle_id = ?");
+    $tc = $pdo->prepare("SELECT COUNT(*) FROM bill_meters WHERE cycle_id = ? AND water_status IN ('review', 'verified')");
     $tc->execute([$cycle_id]);
     $totalRooms = (int)$tc->fetchColumn();
 
