@@ -1259,6 +1259,12 @@ function calcSummaryText(curr, prev, rate) {
 // ── Render hero state ────────────────────────────────────────────────────
 function renderHero(state, data) {
     data = data || {};
+    
+    // Fallback if state is null, empty string, or unknown
+    if (!state || state === 'null' || state === 'undefined' || state.trim() === '') {
+        state = 'pending';
+    }
+    
     const badge      = document.getElementById('waterStatusBadge');
     const heroBody   = document.getElementById('heroBody');
     const periodText = document.getElementById('billPeriodText');
@@ -1290,7 +1296,7 @@ function renderHero(state, data) {
             <h1 class="hero-heading">ถึงเวลาส่งเลขมิเตอร์น้ำ</h1>
             <p class="hero-sub">เปิดรับ วันที่ ${DAY_START}–${DAY_END} ของทุกเดือน${prevTxt}</p>
             <button class="btn-cta teal" id="ctaBtn">
-                <i class="bi bi-droplet-fill"></i> ถ่ายรูป &amp; ส่งเลขน้ำ
+                <i class="bi bi-droplet-fill"></i> ถ่ายรูป &amp; ส่งเลขน้ำ (อัปเดตแล้ว)
             </button>`;
         document.getElementById('ctaBtn').addEventListener('click', openForm);
         document.getElementById('waterCardStatus').textContent = 'ยังไม่ได้ส่งเลข';
