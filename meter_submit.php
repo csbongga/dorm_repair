@@ -1,4 +1,7 @@
 <?php
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
 /**
  * หน้าส่งค่ามิเตอร์น้ำรายเดือน (สำหรับนักศึกษาผ่าน LINE LIFF)
  * อนุญาตให้ส่งค่าได้เฉพาะวันที่ 26–30 ของทุกเดือน
@@ -1392,6 +1395,29 @@ function fetchStudentAndRender(lineUid, displayName, pictureUrl) {
 
                         const pb = meterData.pending_bill;
 
+                        // 1. กำหนดสถานะ Hero Card (สำหรับการส่งค่าน้ำรอบปัจจุบัน)
+                        const hData = {
+                            cycle_label:         meterData.cycle_label,
+                            water_prev:          meterData.water_prev,
+                            rate_water:          meterData.rate_water,
+                            water_curr:          sub ? sub.water_curr : null,
+                            water_reject_reason: sub ? sub.water_reject_reason : null,
+                        };
+
+                        if (!meterData.is_in_window) {
+                            renderHero('outside_window', { cycle_label: meterData.cycle_label });
+                        } else if (!sub) {
+                            renderHero('pending', hData);
+                        } else {
+                            // ถ้ามี record แล้วแต่ยังไม่มี status ให้ถือว่าเป็น pending (แอดมินอาจใส่ค่าไฟมาก่อน)
+                            renderHero(sub.water_status || 'pending', hData);
+                        }
+
+                        if (sub) {
+                            document.getElementById('waterCurrInput').value = sub.water_curr || '';
+                        }
+
+                        // 2. กำหนดสถานะ Bill Summary (บิลค้างชำระ / หรือบิลรอบปัจจุบันที่เสร็จแล้ว)
                         if (pb) {
                             // มีบิลค้างชำระ (รอบปัจจุบัน หรือรอบก่อนหน้า) → แสดงสรุปบิล+ชำระเงินเสมอ
                             const pbMeta = {
@@ -1415,31 +1441,16 @@ function fetchStudentAndRender(lineUid, displayName, pictureUrl) {
                                 payment_slip:         pb.payment_slip         || null,
                                 payment_submitted_at: pb.payment_submitted_at || null,
                             };
-                            renderBillSummary(pbMeta, pbSub);
+                            
+                            // ถ้าบิลค้างชำระเป็นของรอบปัจจุบัน (และผ่าน verified) ถึงจะซ่อนกล่องส่งเลขน้ำ
+                            const isCurrentCycle = (pb.cycle_label === meterData.cycle_label);
+                            renderBillSummary(pbMeta, pbSub, isCurrentCycle);
                         } else if (waterVerified && meterData.elec_entered) {
-                            // รอบปัจจุบัน ยืนยันครบทั้งน้ำและไฟ → แสดงสรุปบิล (fallback กรณี pending_bill เป็น null)
-                            renderBillSummary(meterData, sub);
+                            // รอบปัจจุบัน ยืนยันครบทั้งน้ำและไฟ → แสดงสรุปบิล และซ่อนกล่องส่งเลขน้ำ
+                            renderBillSummary(meterData, sub, true);
                         } else {
-                            // ยังไม่ครบ → เช็คช่วงเวลา
-                            const hData = {
-                                cycle_label:         meterData.cycle_label,
-                                water_prev:          meterData.water_prev,
-                                rate_water:          meterData.rate_water,
-                                water_curr:          sub ? sub.water_curr : null,
-                                water_reject_reason: sub ? sub.water_reject_reason : null,
-                            };
-
-                            if (!meterData.is_in_window) {
-                                renderHero('outside_window', { cycle_label: meterData.cycle_label });
-                            } else if (!sub) {
-                                renderHero('pending', hData);
-                            } else {
-                                renderHero(sub.water_status, hData);
-                            }
-
-                            if (sub) {
-                                document.getElementById('waterCurrInput').value = sub.water_curr || '';
-                            }
+                            // ยังไม่เสร็จสิ้น และไม่มีบิลค้างชำระ → ซ่อนกล่องสรุปบิล
+                            document.getElementById('billSummaryCard').classList.add('d-none');
                         }
                     } else {
                         if (!meterData.is_in_window) {
@@ -1695,7 +1706,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ── Bill Summary ─────────────────────────────────────────────────────────
-function renderBillSummary(meterData, sub) {
+function renderBillSummary(meterData, sub, hideHero = true) {
     const fmt  = n => parseFloat(n).toFixed(2);
     const fmtB = n => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -1750,7 +1761,11 @@ function renderBillSummary(meterData, sub) {
            </div>`
         : '');
 
-    document.querySelector('.hero-card').classList.add('d-none');
+    if (hideHero) {
+        document.querySelector('.hero-card').classList.add('d-none');
+    } else {
+        document.querySelector('.hero-card').classList.remove('d-none');
+    }
 
     if (sub && sub.payment_status === 'confirmed') {
         document.getElementById('billSummaryCard').classList.add('d-none');
