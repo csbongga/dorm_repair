@@ -509,7 +509,7 @@ include 'includes/header.php';
                 <i class="bi bi-x-circle"></i> ตีกลับ
             </button>
             <button class="btn-confirm"
-                    onclick="confirmPayment(<?= $p['id'] ?>, '<?= htmlspecialchars($p['room_number']) ?>', <?= (int)round($total) ?>)">
+                    onclick="confirmPayment(<?= $p['id'] ?>, '<?= htmlspecialchars($p['room_number']) ?>', <?= (int)round($total) ?>, '<?= $slipUrl ? $slipUrl : '' ?>')">
                 <i class="bi bi-check-circle"></i> ยืนยันรับเงิน
             </button>
         </div>
@@ -546,10 +546,17 @@ include 'includes/header.php';
 <?php
 $extra_scripts = <<<'JS'
 <script>
-function confirmPayment(id, room, total) {
+function confirmPayment(id, room, total, slipUrl) {
+    let imgHtml = '';
+    if (slipUrl) {
+        imgHtml = `<div style="text-align:center; margin-top: 15px;">
+                       <img src="${slipUrl}" style="max-height: 250px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" alt="สลิปโอนเงิน">
+                   </div>`;
+    }
+
     Swal.fire({
         title: 'ยืนยันรับเงิน?',
-        html: `ห้อง <strong>${room}</strong><br>ยอด <strong style="color:#16a34a;">฿${total.toLocaleString()}</strong> — ยืนยันว่าได้รับเงินแล้ว?`,
+        html: `ห้อง <strong>${room}</strong><br>ยอด <strong style="color:#16a34a;">฿${total.toLocaleString()}</strong> — ยืนยันว่าได้รับเงินแล้ว? ${imgHtml}`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: '<i class="bi bi-check-circle me-1"></i>ยืนยันรับเงิน',

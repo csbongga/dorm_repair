@@ -27,11 +27,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error_message = 'ข้อมูลไม่ครบถ้วน กรุณากรอกรหัสนักศึกษา ชื่อ เลือกห้องพัก และเลือกอุปกรณ์แจ้งซ่อมอย่างน้อย 1 รายการ';
     } else {
         try {
-            // ดึงข้อมูลเบอร์โทรศัพท์ของนักศึกษาโดยอัตโนมัติจากฐานข้อมูล
-            $phoneStmt = $pdo->prepare("SELECT phone FROM students WHERE student_id = :student_id LIMIT 1");
-            $phoneStmt->execute(['student_id' => $student_id]);
-            $studentPhone = $phoneStmt->fetchColumn();
-            $reporter_phone = $studentPhone ? $studentPhone : null;
+            // === ป้องกันการแจ้งซ่อมซ้ำ (Double Submit หรือ ห้องเดียวกันแจ้งพร้อมกัน) ===
+            // ตรวจสอบว่าใน 5 นาทีที่ผ่านมา ห้องนี้มีการแจ้งซ่อมหรือไม่
+            $stmtDup = $pdo->prepare("SELECT COUNT(*) FROM repair_requests WHERE room_id = :room_id AND created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)");
+            $stmtDup->execute(['room_id' => $room_id]);
+            if ($stmtDup->fetchColumn() > 0) {
+                $error_message = 'ห้องพักนี้เพิ่งมีการแจ้งซ่อมเข้ามาในระบบเมื่อไม่กี่นาทีที่ผ่านมา กรุณารอสักครู่หรือตรวจสอบประวัติการแจ้งซ่อมเพื่อป้องกันการแจ้งซ้ำครับ';
+            } else {
+                // ดึงข้อมูลเบอร์โทรศัพท์ของนักศึกษาโดยอัตโนมัติจากฐานข้อมูล
+                $phoneStmt = $pdo->prepare("SELECT phone FROM students WHERE student_id = :student_id LIMIT 1");
+                $phoneStmt->execute(['student_id' => $student_id]);
+                $studentPhone = $phoneStmt->fetchColumn();
+                $reporter_phone = $studentPhone ? $studentPhone : null;
 
             // 2. จัดการเรื่องอัปโหลดรูปภาพหลายรูป (Multiple Images Upload)
             $uploaded_files = [];
@@ -161,6 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->commit();
                 $success = true;
             }
+            } // Close the duplicate check else block
         } catch (PDOException $e) {
             // ม้วนกลับข้อมูลทั้งหมดกรณีเกิดข้อผิดพลาด
             if ($pdo->inTransaction()) {

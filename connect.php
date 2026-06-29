@@ -57,7 +57,7 @@ try {
     } catch (PDOException $_e) { /* bill_cycles ยังไม่มีในระบบ — ข้ามไป */ }
     // ─────────────────────────────────────────────────────────────────────
 
-    // ── Auto-migrate: เพิ่มคอลัมน์ water_fine (ถ้ายังไม่มี) ─────────────────
+    // ── Auto-migrate: เพิ่มคอลัมน์เก็บประวัติเรทราคาและยอดเงิน ────────────────
     try {
         $pdo->query("SELECT water_fine FROM bill_meters LIMIT 1");
     } catch (PDOException $e) {
@@ -65,6 +65,39 @@ try {
             $pdo->exec("ALTER TABLE bill_meters ADD COLUMN water_fine DECIMAL(10,2) DEFAULT 0");
         } catch (PDOException $e2) { }
     }
+
+    try {
+        $pdo->query("SELECT water_rate, elec_rate, water_amt, elec_amt FROM bill_meters LIMIT 1");
+    } catch (PDOException $e) {
+        try {
+            $pdo->exec("ALTER TABLE bill_meters 
+                ADD COLUMN water_rate DECIMAL(10,2) DEFAULT NULL,
+                ADD COLUMN elec_rate DECIMAL(10,2) DEFAULT NULL,
+                ADD COLUMN water_amt DECIMAL(10,2) DEFAULT NULL,
+                ADD COLUMN elec_amt DECIMAL(10,2) DEFAULT NULL
+            ");
+        } catch (PDOException $e2) { }
+    }
+    
+    // ── Data Migration: คำนวณข้อมูลเก่าที่ยังไม่มีเรทยอดเงิน (ทำครั้งเดียว) ───────
+    try {
+        $needsMigration = $pdo->query("SELECT 1 FROM bill_meters WHERE water_amt IS NULL AND water_curr IS NOT NULL LIMIT 1")->fetchColumn();
+        if ($needsMigration) {
+            $ratesStmt = $pdo->query("SELECT setting_key, value FROM bill_settings WHERE setting_key IN ('rate_water','rate_elec')");
+            $rates     = $ratesStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            $rW = (float)($rates['rate_water'] ?? 0);
+            $rE = (float)($rates['rate_elec']  ?? 0);
+            
+            $pdo->exec("
+                UPDATE bill_meters 
+                SET water_rate = {$rW}, 
+                    elec_rate = {$rE},
+                    water_amt = IF(water_curr IS NOT NULL AND water_prev IS NOT NULL, (water_curr - water_prev) * {$rW}, NULL),
+                    elec_amt  = IF(elec_curr IS NOT NULL AND elec_prev IS NOT NULL, (elec_curr - elec_prev) * {$rE}, NULL)
+                WHERE water_amt IS NULL AND water_curr IS NOT NULL
+            ");
+        }
+    } catch (PDOException $e) { }
     // ─────────────────────────────────────────────────────────────────────
 
 } catch (PDOException $e) {

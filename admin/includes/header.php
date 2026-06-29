@@ -472,7 +472,10 @@
 
         <div class="sidebar-section-label">รายงาน</div>
         <a href="report.php" class="nav-item <?= ($current_page ?? '') === 'report' ? 'active' : '' ?>">
-            <i class="bi bi-file-earmark-bar-graph-fill"></i> ออกรายงาน
+            <i class="bi bi-file-earmark-bar-graph-fill"></i> ออกรายงานซ่อม
+        </a>
+        <a href="report_bills.php" class="nav-item <?= ($current_page ?? '') === 'report_bills' ? 'active' : '' ?>">
+            <i class="bi bi-file-earmark-medical-fill"></i> สรุปค่าน้ำค่าไฟ
         </a>
 
         <div class="sidebar-section-label">ตั้งค่า</div>
