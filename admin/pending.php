@@ -49,6 +49,7 @@ $rowsStmt = $pdo->prepare("
         rr.reporter_name,
         rr.additional_details,
         rr.created_at,
+        (SELECT GROUP_CONCAT(image_url SEPARATOR '|') FROM repair_images WHERE request_id = rr.id) AS images,
         rim.id        AS item_id,
         rim.item_name,
         rim.category,
@@ -88,6 +89,7 @@ foreach ($rawRows as $row) {
             'reporter_name'      => $row['reporter_name'],
             'additional_details' => $row['additional_details'],
             'created_at'         => $row['created_at'],
+            'images'             => $row['images'] ? explode('|', $row['images']) : [],
             'items'              => [],
         ];
     }
@@ -398,6 +400,16 @@ include 'includes/header.php';
                     <div style="font-size:0.75rem;color:#64748b;margin-bottom:8px;padding:5px 8px;background:#f8fafc;border-radius:6px;border-left:2px solid #e2e8f0;line-height:1.4;">
                         <?= htmlspecialchars(mb_substr($ticket['additional_details'], 0, 70)) ?>
                         <?= mb_strlen($ticket['additional_details']) > 70 ? '...' : '' ?>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($ticket['images'])): ?>
+                    <div style="display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; padding-bottom: 4px;">
+                        <?php foreach ($ticket['images'] as $imgUrl): ?>
+                            <a href="../<?= htmlspecialchars($imgUrl) ?>" target="_blank" style="flex-shrink: 0;" title="ดูรูปขนาดเต็ม">
+                                <img src="../<?= htmlspecialchars($imgUrl) ?>" style="width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; display: block;">
+                            </a>
+                        <?php endforeach; ?>
                     </div>
                     <?php endif; ?>
 
