@@ -406,7 +406,7 @@ include 'includes/header.php';
                     <?php if (!empty($ticket['images'])): ?>
                     <div style="display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; padding-bottom: 4px;">
                         <?php foreach ($ticket['images'] as $imgUrl): ?>
-                            <a href="../<?= htmlspecialchars($imgUrl) ?>" target="_blank" style="flex-shrink: 0;" title="ดูรูปขนาดเต็ม">
+                            <a href="javascript:void(0);" onclick="openImageModal('../<?= htmlspecialchars($imgUrl) ?>')" style="flex-shrink: 0;" title="ดูรูปขนาดเต็ม">
                                 <img src="../<?= htmlspecialchars($imgUrl) ?>" style="width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; display: block;">
                             </a>
                         <?php endforeach; ?>
@@ -458,5 +458,24 @@ include 'includes/header.php';
     <?php endif; ?>
 </div>
 <?php endif; ?>
+
+<!-- Image Modal -->
+<div id="imageModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.8); align-items:center; justify-content:center; flex-direction:column;">
+    <span onclick="closeImageModal()" style="position:absolute; top:20px; right:30px; color:white; font-size:40px; font-weight:bold; cursor:pointer;">&times;</span>
+    <img id="modalImage" style="max-width:90%; max-height:80%; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+</div>
+<script>
+function openImageModal(src) {
+    document.getElementById('modalImage').src = src;
+    document.getElementById('imageModal').style.display = 'flex';
+}
+function closeImageModal() {
+    document.getElementById('imageModal').style.display = 'none';
+    document.getElementById('modalImage').src = '';
+}
+document.getElementById('imageModal').addEventListener('click', function(e) {
+    if (e.target === this) closeImageModal();
+});
+</script>
 
 <?php include 'includes/footer.php'; ?>
