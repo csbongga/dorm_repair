@@ -32,8 +32,27 @@ try {
     // ── Auto-cycle: สร้างและตั้งรอบบิลเดือนปัจจุบันอัตโนมัติ ─────────────
     // ทำงานทุกครั้งที่โหลดหน้า แต่ query จริงเกิดเฉพาะเมื่อรอบเปลี่ยน
     try {
-        $m   = (int)date('n');
-        $yBE = (int)date('Y') + 543;
+        $d = (int)date('j');
+        $m = (int)date('n');
+        $y = (int)date('Y');
+        
+        // ดึงการตั้งค่าวันอ่านมิเตอร์เพื่อปรับปรุง logic การเปลี่ยนเดือน
+        $wStmt = $pdo->query("SELECT setting_key, value FROM bill_settings WHERE setting_key IN ('read_window_start','read_window_end')");
+        $wSettings = $wStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        $wStart = (int)($wSettings['read_window_start'] ?? 1);
+        $wEnd   = (int)($wSettings['read_window_end']   ?? 30);
+        
+        // หากเป็นการตั้งค่าคร่อมเดือน (เช่น 26 ถึง 3) 
+        // ถ้าวันที่ปัจจุบันยังไม่เกินวันจบของรอบที่คร่อมมา ให้ถือว่าเป็นรอบบิลของเดือนก่อนหน้า
+        if ($wStart > $wEnd && $d <= $wEnd) {
+            $m = $m - 1;
+            if ($m === 0) {
+                $m = 12;
+                $y = $y - 1;
+            }
+        }
+        
+        $yBE = $y + 543;
         $cid = $yBE . '-' . str_pad($m, 2, '0', STR_PAD_LEFT);
 
         $curCid = $pdo->query("SELECT id FROM bill_cycles WHERE is_current = 1 LIMIT 1")->fetchColumn();
