@@ -36,15 +36,9 @@ try {
         $m = (int)date('n');
         $y = (int)date('Y');
         
-        // ดึงการตั้งค่าวันอ่านมิเตอร์เพื่อปรับปรุง logic การเปลี่ยนเดือน
-        $wStmt = $pdo->query("SELECT setting_key, value FROM bill_settings WHERE setting_key IN ('read_window_start','read_window_end')");
-        $wSettings = $wStmt->fetchAll(PDO::FETCH_KEY_PAIR);
-        $wStart = (int)($wSettings['read_window_start'] ?? 1);
-        $wEnd   = (int)($wSettings['read_window_end']   ?? 30);
-        
-        // หากเป็นการตั้งค่าคร่อมเดือน (เช่น 26 ถึง 3) 
-        // ถ้าวันที่ปัจจุบันยังไม่เกินวันจบของรอบที่คร่อมมา ให้ถือว่าเป็นรอบบิลของเดือนก่อนหน้า
-        if ($wStart > $wEnd && $d <= $wEnd) {
+        // หากวันที่ 1 ถึง 20 ของเดือน ให้ถือว่ายังเป็นรอบบิลของเดือนที่แล้ว
+        // (เพื่อให้แอดมินมีเวลาตรวจสลิป เก็บค่าเช่า และรอรับมิเตอร์น้ำย้อนหลัง)
+        if ($d <= 20) {
             $m = $m - 1;
             if ($m === 0) {
                 $m = 12;
