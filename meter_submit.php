@@ -362,12 +362,21 @@ if (isset($_POST['action']) && $_POST['action'] === 'submit_meter') {
 
         $last_day_of_month = (int)date('t', strtotime(sprintf('%04d-%02d-01', $cyc_year, $cyc_month)));
         $actual_start_day = min(SUBMIT_DAY_START, $last_day_of_month);
-        $actual_end_day = min(SUBMIT_DAY_END, $last_day_of_month);
-
         $start_date = new DateTime(sprintf('%04d-%02d-%02d', $cyc_year, $cyc_month, $actual_start_day));
         $start_date->setTime(0, 0, 0);
-        $end_date = new DateTime(sprintf('%04d-%02d-%02d', $cyc_year, $cyc_month, $actual_end_day));
+
+        $end_date = clone $start_date;
+        if (SUBMIT_DAY_START > SUBMIT_DAY_END) {
+            $end_date->modify('first day of next month');
+            $next_last_day = (int)$end_date->format('t');
+            $actual_end_day = min(SUBMIT_DAY_END, $next_last_day);
+            $end_date->setDate((int)$end_date->format('Y'), (int)$end_date->format('m'), $actual_end_day);
+        } else {
+            $actual_end_day = min(SUBMIT_DAY_END, $last_day_of_month);
+            $end_date->setDate($cyc_year, $cyc_month, $actual_end_day);
+        }
         $end_date->setTime(0, 0, 0);
+        
         $now = new DateTime();
         $now->setTime(0, 0, 0);
 
