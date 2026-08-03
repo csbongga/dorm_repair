@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['ajax'])) {
             $elec_rate = $rateRow ? (float)$rateRow['value'] : 0;
             $elec_amt = null;
             if ($elec_prev !== null && is_numeric($elec_curr)) {
-                $elec_amt = ceil(($elec_curr - $elec_prev) * $elec_rate);
+                $elec_amt = ($elec_curr - $elec_prev) * $elec_rate;
             }
 
             if ($existing) {
@@ -392,7 +392,7 @@ function calcCost(input, prev, rate) {
         return;
     }
     const units = curr - prev;
-    const cost = Math.ceil(units * rate);
+    const cost = units * rate;
     preview.innerHTML = `ใช้ ${units} หน่วย (${cost.toLocaleString()} บ.)`;
     
     // ถ้าค่าไฟ มากกว่า 1000 หรือ เท่ากับ 0 ให้เป็นสีแดงอ่อน

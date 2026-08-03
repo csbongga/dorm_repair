@@ -106,15 +106,19 @@ try {
                 SET water_rate = {$rW}, 
                     elec_rate = {$rE},
                     water_amt = IF(water_curr IS NOT NULL AND water_prev IS NOT NULL, (water_curr - water_prev) * {$rW}, NULL),
-                    elec_amt  = IF(elec_curr IS NOT NULL AND elec_prev IS NOT NULL, CEIL((elec_curr - elec_prev) * {$rE}), NULL)
+                    elec_amt  = IF(elec_curr IS NOT NULL AND elec_prev IS NOT NULL, (elec_curr - elec_prev) * {$rE}, NULL)
                 WHERE water_amt IS NULL AND water_curr IS NOT NULL
             ");
         }
     } catch (PDOException $e) { }
 
-    // ── Data Migration: ปัดเศษขึ้นสำหรับค่าไฟในบิลที่มีอยู่แล้ว (ทำครั้งเดียว) ───────
+    // ── Data Migration: คำนวณค่าไฟใหม่เป็นทศนิยมเหมือนเดิม (Revert CEIL) ───────
     try {
-        $pdo->exec("UPDATE bill_meters SET elec_amt = CEIL(elec_amt) WHERE elec_amt IS NOT NULL AND elec_amt != CEIL(elec_amt)");
+        $pdo->exec("
+            UPDATE bill_meters 
+            SET elec_amt = (elec_curr - elec_prev) * elec_rate 
+            WHERE elec_curr IS NOT NULL AND elec_prev IS NOT NULL AND elec_rate IS NOT NULL
+        ");
     } catch (PDOException $e) { }
     // ─────────────────────────────────────────────────────────────────────
 
