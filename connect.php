@@ -113,6 +113,16 @@ try {
     } catch (PDOException $e) { }
     // ─────────────────────────────────────────────────────────────────────
 
+    // ── Auto-migrate: เพิ่มคอลัมน์ status_note ให้กับ rooms ────────────────
+    try {
+        $pdo->query("SELECT status_note FROM rooms LIMIT 1");
+    } catch (PDOException $e) {
+        try {
+            $pdo->exec("ALTER TABLE rooms ADD COLUMN status_note VARCHAR(255) DEFAULT NULL");
+        } catch (PDOException $e2) { }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
 } catch (PDOException $e) {
     // บันทึกรายละเอียดข้อผิดพลาดจริงลง Error Log ของ Server (ป้องกันการ Leak ข้อมูลเชื่อมต่อให้ภายนอกเห็น)
     error_log("Database Connection Failure: " . $e->getMessage());

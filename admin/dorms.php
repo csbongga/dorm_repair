@@ -117,11 +117,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id          = (int)$_POST['room_id'];
         $room_number = trim($_POST['room_number'] ?? '');
         $status      = $_POST['status'] ?? 'พร้อมใช้งาน';
+        $status_note = trim($_POST['status_note'] ?? '');
         $init_raw    = trim($_POST['water_meter_init'] ?? '');
         $water_init  = ($init_raw !== '' && is_numeric($init_raw)) ? (float)$init_raw : null;
         if ($id && $room_number) {
-            $pdo->prepare("UPDATE rooms SET room_number=?, status=?, water_meter_init=? WHERE id=?")
-                ->execute([$room_number, $status, $water_init, $id]);
+            $pdo->prepare("UPDATE rooms SET room_number=?, status=?, status_note=?, water_meter_init=? WHERE id=?")
+                ->execute([$room_number, $status, $status_note, $water_init, $id]);
             $msg     = "อัปเดตห้อง {$room_number} เรียบร้อยแล้ว";
             $msgType = 'success';
         }
@@ -178,7 +179,7 @@ $dorms = $pdo->query("
 // ห้องพักของหอที่เลือก (หรือทั้งหมดถ้าไม่ได้เลือก)
 $roomsWhere  = $selectedDorm ? 'WHERE r.dorm_id = ' . $selectedDorm : '';
 $rooms = $pdo->query("
-    SELECT r.id, r.room_number, r.status, r.dorm_id, r.water_meter_init,
+    SELECT r.id, r.room_number, r.status, r.status_note, r.dorm_id, r.water_meter_init,
            d.name AS dorm_name,
            (SELECT COUNT(*) FROM students s WHERE s.room_id = r.id) AS student_count,
            (SELECT COUNT(*) FROM repair_requests rr WHERE rr.room_id = r.id) AS repair_count,
@@ -189,7 +190,7 @@ $rooms = $pdo->query("
     ORDER BY d.id ASC, r.room_number ASC
 ")->fetchAll();
 
-$roomStatuses = ['พร้อมใช้งาน', 'ไม่พร้อมใช้งาน', 'กำลังซ่อมแซม'];
+$roomStatuses = ['พร้อมใช้งาน', 'ไม่พร้อมใช้งาน', 'กำลังซ่อมแซม', 'ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์', 'ห้องชำรุด'];
 $dormTypes    = ['หอพักชาย', 'หอพักหญิง', 'หอพักรวม'];
 
 include 'includes/header.php';
@@ -408,6 +409,10 @@ include 'includes/header.php';
                     'พร้อมใช้งาน'    => ['#d1fae5', '#059669'],
                     'ไม่พร้อมใช้งาน' => ['#f1f5f9', '#64748b'],
                     'กำลังซ่อมแซม'  => ['#fef3c7', '#d97706'],
+                    'ห้องว่าง'     => ['#e0e7ff', '#4f46e5'],
+                    'ห้องสำรอง'    => ['#ffedd5', '#ea580c'],
+                    'ห้องอาจารย์'   => ['#fce7f3', '#db2777'],
+                    'ห้องชำรุด'    => ['#fee2e2', '#dc2626'],
                 ][$room['status']] ?? ['#f1f5f9', '#64748b'];
                 ?>
                 <tr>
@@ -425,6 +430,11 @@ include 'includes/header.php';
                         <span class="badge" style="background:<?= $statusColor[0] ?>;color:<?= $statusColor[1] ?>;font-size:0.78rem;border-radius:8px;font-weight:500;">
                             <?= htmlspecialchars($room['status']) ?>
                         </span>
+                        <?php if ($room['status'] === 'ห้องชำรุด' && !empty($room['status_note'])): ?>
+                        <div style="font-size:0.75rem;color:#ef4444;margin-top:4px;">
+                            <i class="bi bi-info-circle me-1"></i><?= htmlspecialchars($room['status_note']) ?>
+                        </div>
+                        <?php endif; ?>
                     </td>
                     <td>
                         <?php if ($room['student_count'] > 0): ?>
@@ -675,11 +685,15 @@ include 'includes/header.php';
                     </div>
                     <div class="mb-3">
                         <label class="form-label" style="font-size:0.85rem;font-weight:500;">สถานะห้อง</label>
-                        <select name="status" id="editRoomStatus" class="form-select form-select-sm">
+                        <select name="status" id="editRoomStatus" class="form-select form-select-sm" onchange="toggleStatusNote()">
                             <?php foreach ($roomStatuses as $rs): ?>
                             <option value="<?= $rs ?>"><?= $rs ?></option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+                    <div class="mb-3" id="statusNoteGroup" style="display:none;">
+                        <label class="form-label" style="font-size:0.85rem;font-weight:500;">หมายเหตุ (กรณีชำรุด)</label>
+                        <input type="text" name="status_note" id="editRoomStatusNote" class="form-control form-control-sm" placeholder="เช่น แอร์เสีย, น้ำรั่ว">
                     </div>
                     <div class="mb-1">
                         <label class="form-label" style="font-size:0.85rem;font-weight:500;">
@@ -750,9 +764,20 @@ function openEditRoomModal(room) {
     document.getElementById('editRoomId').value        = room.id;
     document.getElementById('editRoomNumber').value    = room.room_number;
     document.getElementById('editRoomStatus').value    = room.status;
+    document.getElementById('editRoomStatusNote').value = room.status_note ?? '';
     document.getElementById('editRoomDorm').value      = room.dorm_name;
     document.getElementById('editRoomWaterInit').value = room.water_meter_init ?? '';
+    toggleStatusNote();
     new bootstrap.Modal(document.getElementById('editRoomModal')).show();
+}
+
+function toggleStatusNote() {
+    const st = document.getElementById('editRoomStatus').value;
+    if (st === 'ห้องชำรุด') {
+        document.getElementById('statusNoteGroup').style.display = 'block';
+    } else {
+        document.getElementById('statusNoteGroup').style.display = 'none';
+    }
 }
 
 function updateBatchPreview() {
