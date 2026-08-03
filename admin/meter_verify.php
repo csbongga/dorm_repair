@@ -200,7 +200,10 @@ if ($cycle_id) {
                    ) AS water_prev,
                    (SELECT bm_cur.water_curr 
                     FROM bill_meters bm_cur 
-                    WHERE bm_cur.room_id = r.id AND bm_cur.cycle_id = :cid2 AND bm_cur.water_status = 'verified') AS curr_val
+                    WHERE bm_cur.room_id = r.id AND bm_cur.cycle_id = :cid2 AND bm_cur.water_status = 'verified') AS curr_val,
+                   (SELECT bm_cur.water_photo 
+                    FROM bill_meters bm_cur 
+                    WHERE bm_cur.room_id = r.id AND bm_cur.cycle_id = :cid4 AND bm_cur.water_status = 'verified') AS water_photo
             FROM rooms r
             LEFT JOIN students s ON s.room_id = r.id
             WHERE r.id NOT IN (
@@ -215,6 +218,7 @@ if ($cycle_id) {
             'cid'     => $cycle_id,
             'cid2'    => $cycle_id,
             'cid3'    => $cycle_id,
+            'cid4'    => $cycle_id,
             'fdorm_c' => $filter_dorm,
             'fdorm_v' => $filter_dorm,
             'ffloor_c' => $filter_floor ?: '0',
@@ -773,7 +777,13 @@ include 'includes/header.php';
             <tbody>
             <?php foreach ($allRoomsList as $nr): ?>
                 <tr id="nmrow-<?= $nr['room_id'] ?>">
-                    <td><span class="room-pill"><?= htmlspecialchars($nr['room_number']) ?></span></td>
+                    <td>
+                        <span class="room-pill"><?= htmlspecialchars($nr['room_number']) ?></span>
+                        <?php if (!empty($nr['water_photo'])): ?>
+                            <i class="bi bi-image" style="color:#0ea5e9; cursor:pointer; font-size:1.1rem; margin-left:8px;" 
+                               onclick="openPhoto('../<?= htmlspecialchars($nr['water_photo']) ?>')" title="ดูรูปภาพ"></i>
+                        <?php endif; ?>
+                    </td>
                     <td>
                         <?php if ($nr['water_prev'] !== null): ?>
                             <span class="prev-chip"><?= number_format((float)$nr['water_prev'], 0) ?></span>
