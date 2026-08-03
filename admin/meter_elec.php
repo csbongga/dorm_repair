@@ -348,16 +348,22 @@ include 'includes/header.php';
                         <?php endif; ?>
                     </td>
                     <td>
-                        <form onsubmit="saveElec(this, event)" style="display:flex;gap:8px;align-items:center;">
+                        <form onsubmit="saveElec(this, event)" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                             <input type="hidden" name="room_id"  value="<?= $nr['room_id'] ?>">
                             <input type="hidden" name="cycle_id" value="<?= htmlspecialchars($cycle_id) ?>">
                             <input type="hidden" name="ajax"     value="1">
                             <input type="number" name="elec_curr" class="curr-input"
-                                   value="<?= $nr['curr_val'] !== null ? htmlspecialchars($nr['curr_val']) : '' ?>"
-                                   placeholder="0" min="0" step="1" inputmode="numeric" required>
+                                   value="<?= $nr['curr_val'] !== null ? (int)$nr['curr_val'] : '' ?>"
+                                   placeholder="0" min="0" step="1" inputmode="numeric" required
+                                   oninput="calcCost(this, <?= $nr['elec_prev'] !== null ? (int)$nr['elec_prev'] : 0 ?>, <?= $rateElec ?>)">
                             <button type="submit" class="btn-save">
                                 <i class="bi bi-check2"></i> บันทึก
                             </button>
+                            <div class="cost-preview" style="font-size:0.85rem;color:#64748b;margin-left:4px;min-width:100px;">
+                                <?php if ($nr['curr_val'] !== null && $nr['elec_prev'] !== null && $nr['curr_val'] >= $nr['elec_prev']): ?>
+                                    ใช้ <?= (int)$nr['curr_val'] - (int)$nr['elec_prev'] ?> หน่วย (<?= number_format(((int)$nr['curr_val'] - (int)$nr['elec_prev']) * $rateElec, 0) ?> บ.)
+                                <?php endif; ?>
+                            </div>
                         </form>
                     </td>
                 </tr>
@@ -371,6 +377,19 @@ include 'includes/header.php';
 <?php
 $extra_scripts = <<<'JS'
 <script>
+function calcCost(input, prev, rate) {
+    const preview = input.closest('form').querySelector('.cost-preview');
+    if (!preview) return;
+    const curr = parseInt(input.value);
+    if (isNaN(curr) || curr < prev) {
+        preview.innerHTML = '';
+        return;
+    }
+    const units = curr - prev;
+    const cost = units * rate;
+    preview.innerHTML = `ใช้ ${units} หน่วย (${cost.toLocaleString()} บ.)`;
+}
+
 async function saveElec(form, event) {
     event.preventDefault();
     const btn  = form.querySelector('button[type=submit]');
