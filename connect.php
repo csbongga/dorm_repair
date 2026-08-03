@@ -106,7 +106,7 @@ try {
                 SET water_rate = {$rW}, 
                     elec_rate = {$rE},
                     water_amt = IF(water_curr IS NOT NULL AND water_prev IS NOT NULL, (water_curr - water_prev) * {$rW}, NULL),
-                    elec_amt  = IF(elec_curr IS NOT NULL AND elec_prev IS NOT NULL, (elec_curr - elec_prev) * {$rE}, NULL)
+                    elec_amt  = IF(elec_curr IS NOT NULL AND elec_prev IS NOT NULL, CEIL((elec_curr - elec_prev) * {$rE}), NULL)
                 WHERE water_amt IS NULL AND water_curr IS NOT NULL
             ");
         }
