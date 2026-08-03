@@ -379,16 +379,33 @@ $extra_scripts = <<<'JS'
 <script>
 function calcCost(input, prev, rate) {
     const preview = input.closest('form').querySelector('.cost-preview');
+    const row = input.closest('tr');
     if (!preview) return;
     const curr = parseInt(input.value);
     if (isNaN(curr) || curr < prev) {
         preview.innerHTML = '';
+        row.style.background = '';
         return;
     }
     const units = curr - prev;
     const cost = units * rate;
     preview.innerHTML = `ใช้ ${units} หน่วย (${cost.toLocaleString()} บ.)`;
+    
+    // ถ้าค่าไฟ มากกว่า 1000 หรือ เท่ากับ 0 ให้เป็นสีแดงอ่อน
+    if (cost > 1000 || cost === 0) {
+        row.style.background = '#fee2e2';
+    } else {
+        row.style.background = '';
+    }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.curr-input').forEach(input => {
+        if (input.value !== '') {
+            input.dispatchEvent(new Event('input'));
+        }
+    });
+});
 
 async function saveElec(form, event) {
     event.preventDefault();
