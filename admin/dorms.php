@@ -390,8 +390,6 @@ include 'includes/header.php';
                     <?php endif; ?>
                     <th>สถานะห้อง</th>
                     <th>นักศึกษา</th>
-                    <th>ใบงาน</th>
-                    <th>รอดำเนินการ</th>
                     <th style="padding-right:20px;"></th>
                 </tr>
             </thead>
@@ -432,25 +430,6 @@ include 'includes/header.php';
                         <?php if ($room['student_count'] > 0): ?>
                         <span class="badge" style="background:#dbeafe;color:#1d4ed8;font-size:0.78rem;">
                             <i class="bi bi-person-fill me-1"></i><?= $room['student_count'] ?>
-                        </span>
-                        <?php else: ?>
-                        <span style="font-size:0.82rem;color:#cbd5e1;">—</span>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <?php if ($room['repair_count'] > 0): ?>
-                        <a href="repairs.php?q=<?= urlencode($room['room_number']) ?>"
-                           style="font-size:0.85rem;color:#06C755;text-decoration:none;font-weight:500;">
-                            <?= $room['repair_count'] ?> ใบ
-                        </a>
-                        <?php else: ?>
-                        <span style="font-size:0.82rem;color:#cbd5e1;">—</span>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <?php if ($room['pending_count'] > 0): ?>
-                        <span class="badge" style="background:#fef3c7;color:#d97706;font-size:0.78rem;">
-                            <?= $room['pending_count'] ?> รายการ
                         </span>
                         <?php else: ?>
                         <span style="font-size:0.82rem;color:#cbd5e1;">—</span>
