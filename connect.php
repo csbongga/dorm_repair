@@ -111,6 +111,11 @@ try {
             ");
         }
     } catch (PDOException $e) { }
+
+    // ── Data Migration: ปัดเศษขึ้นสำหรับค่าไฟในบิลที่มีอยู่แล้ว (ทำครั้งเดียว) ───────
+    try {
+        $pdo->exec("UPDATE bill_meters SET elec_amt = CEIL(elec_amt) WHERE elec_amt IS NOT NULL AND elec_amt != CEIL(elec_amt)");
+    } catch (PDOException $e) { }
     // ─────────────────────────────────────────────────────────────────────
 
     // ── Auto-migrate: เพิ่มคอลัมน์ status_note ให้กับ rooms ────────────────
