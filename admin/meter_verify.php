@@ -183,8 +183,9 @@ if ($cycle_id) {
     $tc->execute([$cycle_id]);
     $totalRooms = (int)$tc->fetchColumn();
 
-    // ห้องที่ยังไม่มีมิเตอร์รอบนี้ (พร้อม filter)
-    $noMeterRooms = [];
+    // ห้องที่ไม่มีมิเตอร์รอบนี้ และที่ยืนยันแล้ว (เพื่อแก้ไข)
+    $allRoomsList = [];
+    $pendingCount = 0;
     try {
         $nmStmt = $pdo->prepare("
             SELECT r.id AS room_id, r.room_number,
@@ -196,11 +197,14 @@ if ($cycle_id) {
                           AND bm2.cycle_id != :cid
                         ORDER BY bm2.cycle_id DESC LIMIT 1),
                        r.water_meter_init
-                   ) AS water_prev
+                   ) AS water_prev,
+                   (SELECT bm_cur.water_curr 
+                    FROM bill_meters bm_cur 
+                    WHERE bm_cur.room_id = r.id AND bm_cur.cycle_id = :cid2 AND bm_cur.water_status = 'verified') AS curr_val
             FROM rooms r
             LEFT JOIN students s ON s.room_id = r.id
             WHERE r.id NOT IN (
-                SELECT room_id FROM bill_meters WHERE cycle_id = :cid2 AND (water_status = 'review' OR water_status = 'verified')
+                SELECT room_id FROM bill_meters WHERE cycle_id = :cid3 AND water_status = 'review'
             )
               AND (:fdorm_c = 0 OR r.dorm_id = :fdorm_v)
               AND (:ffloor_c = 0 OR r.floor = :ffloor_v)
@@ -209,29 +213,19 @@ if ($cycle_id) {
         ");
         $nmStmt->execute([
             'cid'     => $cycle_id,
-            'cid2'   => $cycle_id,
+            'cid2'    => $cycle_id,
+            'cid3'    => $cycle_id,
             'fdorm_c' => $filter_dorm,
             'fdorm_v' => $filter_dorm,
             'ffloor_c' => $filter_floor ?: '0',
             'ffloor_v' => $filter_floor ?: '0',
         ]);
-        $noMeterRooms = $nmStmt->fetchAll();
+        $allRoomsList = $nmStmt->fetchAll();
+        foreach ($allRoomsList as $rm) {
+            if ($rm['curr_val'] === null) $pendingCount++;
+        }
     } catch (PDOException $e) {
-        $nmStmt = $pdo->prepare("
-            SELECT r.id AS room_id, r.room_number,
-                   GROUP_CONCAT(CONCAT(s.name, IFNULL(CONCAT(' (', NULLIF(s.phone, ''), ')'), '')) SEPARATOR ', ') AS student_name,
-                   (SELECT bm2.water_curr FROM bill_meters bm2
-                    WHERE bm2.room_id = r.id AND bm2.water_status = 'verified'
-                      AND bm2.cycle_id != ?
-                    ORDER BY bm2.cycle_id DESC LIMIT 1) AS water_prev
-            FROM rooms r
-            LEFT JOIN students s ON s.room_id = r.id
-            WHERE r.id NOT IN (SELECT room_id FROM bill_meters WHERE cycle_id = ? AND (water_status = 'review' OR water_status = 'verified'))
-            GROUP BY r.id
-            ORDER BY r.room_number ASC
-        ");
-        $nmStmt->execute([$cycle_id, $cycle_id]);
-        $noMeterRooms = $nmStmt->fetchAll();
+        $allRoomsList = [];
     }
 
 }
@@ -614,7 +608,7 @@ include 'includes/header.php';
     <div class="stat-chip">
         <div class="sc-icon" style="background:#f0fdfa;color:#0d9488;"><i class="bi bi-droplet-fill"></i></div>
         <div>
-            <div class="sc-num">฿<?= number_format($rateWater, 0) ?></div>
+            <div class="sc-num">฿<?= rtrim(rtrim(number_format($rateWater, 2), '0'), '.') ?></div>
             <div class="sc-lbl">บาท/หน่วย</div>
         </div>
     </div>
@@ -749,19 +743,19 @@ include 'includes/header.php';
 <!-- ====================================================== -->
 <!-- ผู้ดูแลกรอกมิเตอร์แทน -->
 <!-- ====================================================== -->
-<?php if ($cycle_id && !empty($noMeterRooms)): ?>
+<?php if ($cycle_id && !empty($allRoomsList)): ?>
 
 <div class="section-divider">
     <i class="bi bi-pencil-square" style="color:#0d9488;"></i>
-    กรอกมิเตอร์โดยผู้ดูแล (<?= count($noMeterRooms) ?> ห้องที่ยังไม่มีข้อมูล)
+    กรอกมิเตอร์โดยผู้ดูแล (<?= count($allRoomsList) ?> ห้อง)
 </div>
 
 <div class="panel">
     <div class="panel-header">
         <span class="panel-title">
-            <i class="bi bi-pencil-square"></i> ห้องที่ยังไม่ได้ส่งเลขมิเตอร์
+            <i class="bi bi-pencil-square"></i> รายชื่อห้องสำหรับการกรอกค่าน้ำ
         </span>
-        <span style="font-size:.8rem;color:#94a3b8;">กรอกเลขแล้วกด "บันทึก" — ระบบยืนยันให้อัตโนมัติ ไม่ต้องแนบรูป</span>
+        <span style="font-size:.8rem;color:#94a3b8;">กรอกเลขแล้วกด "บันทึก" (สามารถแก้ไขที่ยืนยันไปแล้วได้)</span>
     </div>
     <div class="table-responsive">
         <table class="admin-enter-table">
@@ -773,7 +767,7 @@ include 'includes/header.php';
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($noMeterRooms as $nr): ?>
+            <?php foreach ($allRoomsList as $nr): ?>
                 <tr id="nmrow-<?= $nr['room_id'] ?>">
                     <td><span class="room-pill"><?= htmlspecialchars($nr['room_number']) ?></span></td>
                     <td>
@@ -784,16 +778,23 @@ include 'includes/header.php';
                         <?php endif; ?>
                     </td>
                     <td colspan="2">
-                        <form onsubmit="saveAdminMeter(this, event)" style="display:flex;gap:8px;align-items:center;">
+                        <form onsubmit="saveAdminMeter(this, event)" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                             <input type="hidden" name="action"   value="admin_enter">
                             <input type="hidden" name="ajax"     value="1">
                             <input type="hidden" name="room_id"  value="<?= $nr['room_id'] ?>">
                             <input type="hidden" name="cycle_id" value="<?= htmlspecialchars($cycle_id) ?>">
                             <input type="number" name="water_curr" class="curr-input"
-                                   placeholder="0" min="0" step="1" inputmode="numeric" required>
+                                   value="<?= $nr['curr_val'] !== null ? (int)$nr['curr_val'] : '' ?>"
+                                   placeholder="0" min="0" step="1" inputmode="numeric" required
+                                   oninput="calcCost(this, <?= $nr['water_prev'] !== null ? (int)$nr['water_prev'] : 0 ?>, <?= $rateWater ?>)">
                             <button type="submit" class="btn-admin-save">
                                 <i class="bi bi-check2"></i> บันทึก
                             </button>
+                            <div class="cost-preview" style="font-size:0.85rem;color:#64748b;margin-left:4px;min-width:100px;">
+                                <?php if ($nr['curr_val'] !== null && $nr['water_prev'] !== null && $nr['curr_val'] >= $nr['water_prev']): ?>
+                                    ใช้ <?= (int)$nr['curr_val'] - (int)$nr['water_prev'] ?> หน่วย (<?= number_format(((int)$nr['curr_val'] - (int)$nr['water_prev']) * $rateWater, 0) ?> บ.)
+                                <?php endif; ?>
+                            </div>
                         </form>
                     </td>
                 </tr>
@@ -925,6 +926,36 @@ function closePhoto() {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePhoto(); });
 
+function calcCost(input, prev, rate) {
+    const preview = input.closest('form').querySelector('.cost-preview');
+    const row = input.closest('tr');
+    if (!preview) return;
+    const curr = parseInt(input.value);
+    if (isNaN(curr) || curr < prev) {
+        preview.innerHTML = '';
+        row.style.background = '';
+        return;
+    }
+    const units = curr - prev;
+    const cost = units * rate;
+    preview.innerHTML = `ใช้ ${units} หน่วย (${cost.toLocaleString()} บ.)`;
+    
+    // ถ้าค่าน้ำ มากกว่า 1000 หรือ เท่ากับ 0 ให้เป็นสีแดงอ่อน
+    if (cost > 1000 || cost === 0) {
+        row.style.background = '#fee2e2';
+    } else {
+        row.style.background = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.curr-input').forEach(input => {
+        if (input.value !== '') {
+            input.dispatchEvent(new Event('input'));
+        }
+    });
+});
+
 async function saveAdminMeter(form, event) {
     event.preventDefault();
     const btn  = form.querySelector('button[type=submit]');
@@ -938,11 +969,28 @@ async function saveAdminMeter(form, event) {
         if (data.ok) {
             const row = form.closest('tr');
             const nextInput = row.nextElementSibling?.querySelector('input[name="water_curr"]');
-            row.style.transition = 'opacity 0.5s';
-            row.style.background = '#f0fdf4';
-            row.cells[2].innerHTML = '<span style="color:#0d9488;font-weight:600;font-size:.88rem;"><i class="bi bi-check-circle-fill me-1"></i>บันทึกแล้ว</span>';
-            setTimeout(() => { row.style.opacity = '0'; }, 700);
-            setTimeout(() => { row.remove(); }, 1200);
+            
+            // เปลี่ยนปุ่มเป็นสถานะสำเร็จชั่วคราว
+            btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> สำเร็จ';
+            btn.style.background = '#10b981';
+            btn.style.borderColor = '#10b981';
+            
+            setTimeout(() => { 
+                btn.innerHTML = orig; 
+                btn.style.background = '';
+                btn.style.borderColor = '';
+                btn.disabled = false;
+            }, 1500);
+
+            // อัปเดตตัวเลข stat ทันที
+            const verifiedElem = document.querySelectorAll('.sc-num')[1];
+            const totalElem = document.querySelectorAll('.sc-num')[2];
+            if (orig.indexOf('บันทึก') !== -1 && btn.closest('form').querySelector('input[name="water_curr"]').defaultValue === '') {
+                if (verifiedElem) verifiedElem.innerText = parseInt(verifiedElem.innerText) + 1;
+                if (totalElem) totalElem.innerText = parseInt(totalElem.innerText) + 1;
+                btn.closest('form').querySelector('input[name="water_curr"]').defaultValue = 'entered';
+            }
+
             if (nextInput) setTimeout(() => { nextInput.focus(); nextInput.select(); }, 100);
         } else {
             btn.disabled = false;
