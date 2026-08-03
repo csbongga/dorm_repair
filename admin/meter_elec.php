@@ -289,6 +289,10 @@ include 'includes/header.php';
     </select>
 
     <button type="submit" class="btn-filter"><i class="bi bi-funnel-fill"></i> กรอง</button>
+    
+    <button type="button" class="btn-filter" id="btnToggleIssues" onclick="toggleIssues()" style="background:#fef2f2;color:#ef4444;border:1px solid #fca5a5;margin-left:auto;">
+        <i class="bi bi-exclamation-triangle-fill"></i> ดูเฉพาะห้องที่มีปัญหา
+    </button>
 
     <?php if ($filter_dorm || $filter_floor): ?>
     <a href="meter_elec.php" class="btn-filter-clear"><i class="bi bi-x-circle"></i> ล้างตัวกรอง</a>
@@ -394,9 +398,40 @@ function calcCost(input, prev, rate) {
     // ถ้าค่าไฟ มากกว่า 1000 หรือ เท่ากับ 0 ให้เป็นสีแดงอ่อน
     if (cost > 1000 || cost === 0) {
         row.style.background = '#fee2e2';
+        row.classList.add('has-issue');
+        if (typeof showingOnlyIssues !== 'undefined' && showingOnlyIssues) {
+            row.style.display = '';
+        }
     } else {
         row.style.background = '';
+        row.classList.remove('has-issue');
+        if (typeof showingOnlyIssues !== 'undefined' && showingOnlyIssues) {
+            row.style.display = 'none';
+        }
     }
+}
+
+let showingOnlyIssues = false;
+function toggleIssues() {
+    showingOnlyIssues = !showingOnlyIssues;
+    const btn = document.getElementById('btnToggleIssues');
+    if (showingOnlyIssues) {
+        btn.style.background = '#ef4444';
+        btn.style.color = '#fff';
+        btn.innerHTML = '<i class="bi bi-card-list"></i> ดูห้องทั้งหมด';
+    } else {
+        btn.style.background = '#fef2f2';
+        btn.style.color = '#ef4444';
+        btn.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> ดูเฉพาะห้องที่มีปัญหา';
+    }
+    
+    document.querySelectorAll('.enter-table tbody tr').forEach(tr => {
+        if (showingOnlyIssues) {
+            tr.style.display = tr.classList.contains('has-issue') ? '' : 'none';
+        } else {
+            tr.style.display = '';
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
