@@ -263,7 +263,7 @@ include 'includes/header.php';
     <?php if ($rateElec > 0): ?>
     <div class="stat-chip">
         <div class="sc-icon" style="background:#fffbeb;color:#d97706;"><i class="bi bi-lightning-charge-fill"></i></div>
-        <div><div class="sc-num">฿<?= number_format($rateElec, 0) ?></div><div class="sc-lbl">บาท/หน่วย</div></div>
+        <div><div class="sc-num">฿<?= rtrim(rtrim(number_format($rateElec, 2), '0'), '.') ?></div><div class="sc-lbl">บาท/หน่วย</div></div>
     </div>
     <?php endif; ?>
 </div>
