@@ -940,8 +940,8 @@ function calcCost(input, prev, rate) {
     const cost = units * rate;
     preview.innerHTML = `ใช้ ${units} หน่วย (${cost.toLocaleString()} บ.)`;
     
-    // ถ้าค่าน้ำ มากกว่า 1000 หรือ เท่ากับ 0 ให้เป็นสีแดงอ่อน
-    if (cost > 1000 || cost === 0) {
+    // ถ้าค่าน้ำ มากกว่า 500 หรือ เท่ากับ 0 ให้เป็นสีแดงอ่อน
+    if (cost > 500 || cost === 0) {
         row.style.background = '#fee2e2';
     } else {
         row.style.background = '';
