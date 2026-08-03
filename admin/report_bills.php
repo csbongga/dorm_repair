@@ -31,6 +31,7 @@ $summaryStmt = $pdo->prepare("
     FROM dorms d
     JOIN rooms r ON d.id = r.dorm_id
     LEFT JOIN bill_meters bm ON r.id = bm.room_id AND bm.cycle_id = :cid
+    WHERE EXISTS (SELECT 1 FROM students s WHERE s.room_id = r.id)
     GROUP BY d.id
     ORDER BY d.name ASC
 ");
@@ -48,6 +49,7 @@ $unpaidStmt = $pdo->prepare("
     JOIN rooms r ON d.id = r.dorm_id
     JOIN bill_meters bm ON r.id = bm.room_id AND bm.cycle_id = :cid
     WHERE (bm.payment_status IS NULL OR bm.payment_status != 'confirmed')
+      AND EXISTS (SELECT 1 FROM students s WHERE s.room_id = r.id)
     ORDER BY d.id ASC, r.floor ASC, r.room_number ASC
 ");
 $unpaidStmt->execute(['cid' => $cycle_id]);
