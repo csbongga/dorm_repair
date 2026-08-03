@@ -92,19 +92,13 @@ $filter_floor = (int)($_GET['floor']   ?? 0);
 
 $allDorms = $pdo->query("SELECT id, name FROM dorms ORDER BY name ASC")->fetchAll();
 
-$noElecRooms  = [];
+$allRoomsList = [];
 $enteredCount = 0;
 $totalRooms   = 0;
+$pendingCount = 0;
 
 if ($cycle_id) {
-    $tc = $pdo->query("SELECT COUNT(*) FROM rooms")->fetchColumn();
-    $totalRooms = (int)$tc;
-
-    $ec = $pdo->prepare("SELECT COUNT(*) FROM bill_meters WHERE cycle_id = ? AND elec_entered = 1");
-    $ec->execute([$cycle_id]);
-    $enteredCount = (int)$ec->fetchColumn();
-
-    // ห้องที่ยังไม่ได้กรอกเลขไฟ
+    // ดึงห้องทั้งหมดตามตัวกรอง
     try {
         $stmt = $pdo->prepare("
             SELECT r.id AS room_id, r.room_number,
@@ -115,13 +109,13 @@ if ($cycle_id) {
                           AND bm2.cycle_id != :cid
                         ORDER BY bm2.cycle_id DESC LIMIT 1),
                        r.elec_meter_init
-                   ) AS elec_prev
+                   ) AS elec_prev,
+                   (SELECT bm_cur.elec_curr 
+                    FROM bill_meters bm_cur 
+                    WHERE bm_cur.room_id = r.id AND bm_cur.cycle_id = :cid2) AS curr_val
             FROM rooms r
             WHERE (:fdorm_c = 0 OR r.dorm_id = :fdorm_v)
               AND (:ffloor_c = 0 OR r.floor = :ffloor_v)
-              AND r.id NOT IN (
-                  SELECT room_id FROM bill_meters WHERE cycle_id = :cid2 AND elec_entered = 1
-              )
             ORDER BY r.room_number ASC
         ");
         $stmt->execute([
@@ -129,25 +123,23 @@ if ($cycle_id) {
             'cid2'    => $cycle_id,
             'fdorm_c' => $filter_dorm,
             'fdorm_v' => $filter_dorm,
-            'ffloor_c' => $filter_floor,
-            'ffloor_v' => $filter_floor,
+            'ffloor_c'=> $filter_floor,
+            'ffloor_v'=> $filter_floor
         ]);
-        $noElecRooms = $stmt->fetchAll();
+        $allRoomsList = $stmt->fetchAll();
+        $pendingCount = 0;
+        $enteredCount = 0;
+        foreach ($allRoomsList as $rm) {
+            if ($rm['curr_val'] === null) {
+                $pendingCount++;
+            } else {
+                $enteredCount++;
+            }
+        }
     } catch (PDOException $e) {
-        $stmt = $pdo->prepare("
-            SELECT r.id AS room_id, r.room_number,
-                   (SELECT bm2.elec_curr FROM bill_meters bm2
-                    WHERE bm2.room_id = r.id AND bm2.elec_entered = 1
-                      AND bm2.cycle_id != ?
-                    ORDER BY bm2.cycle_id DESC LIMIT 1) AS elec_prev
-            FROM rooms r
-            WHERE r.id NOT IN (
-                SELECT room_id FROM bill_meters WHERE cycle_id = ? AND elec_entered = 1
-            )
-            ORDER BY r.room_number ASC
-        ");
-        $stmt->execute([$cycle_id, $cycle_id]);
-        $noElecRooms = $stmt->fetchAll();
+        $allRoomsList = [];
+        $pendingCount = 0;
+        $enteredCount = 0;
     }
 }
 
@@ -262,7 +254,7 @@ include 'includes/header.php';
 <div class="stat-strip">
     <div class="stat-chip">
         <div class="sc-icon" style="background:#fef3c7;color:#d97706;"><i class="bi bi-exclamation-circle-fill"></i></div>
-        <div><div class="sc-num"><?= count($noElecRooms) ?></div><div class="sc-lbl">ยังไม่ได้กรอก</div></div>
+        <div><div class="sc-num"><?= $pendingCount ?></div><div class="sc-lbl">ยังไม่ได้กรอก</div></div>
     </div>
     <div class="stat-chip">
         <div class="sc-icon" style="background:#dcfce7;color:#16a34a;"><i class="bi bi-check-circle-fill"></i></div>
@@ -320,19 +312,19 @@ include 'includes/header.php';
     </div>
 </div></div>
 
-<?php elseif (empty($noElecRooms)): ?>
+<?php elseif (empty($allRoomsList)): ?>
 <div class="panel"><div class="panel-body">
     <div class="empty-state">
-        <i class="bi bi-check2-all" style="color:#d97706;"></i>
-        <h5 style="color:#d97706;">กรอกมิเตอร์ไฟฟ้าครบทุกห้องแล้ว</h5>
-        <p style="font-size:.88rem;">ไม่มีห้องที่ต้องกรอกเพิ่มเติมในรอบนี้</p>
+        <i class="bi bi-check2-circle" style="color:#10b981;"></i>
+        <h5>ไม่พบข้อมูลห้อง</h5>
+        <p style="font-size:.88rem;">กรองข้อมูลไม่พบห้องในเงื่อนไขนี้</p>
     </div>
 </div></div>
 
 <?php else: ?>
 <div class="panel">
     <div class="panel-header">
-        <span class="panel-title"><i class="bi bi-list-ul"></i> ห้องที่ยังไม่ได้กรอกเลขมิเตอร์</span>
+        <span class="panel-title"><i class="bi bi-list-ul"></i> รายชื่อห้องทั้งหมด</span>
         <span style="font-size:.8rem;color:#94a3b8;">กรอกเลขปัจจุบันแล้วกด "บันทึก"</span>
     </div>
     <div class="table-responsive">
@@ -345,7 +337,7 @@ include 'includes/header.php';
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($noElecRooms as $nr): ?>
+            <?php foreach ($allRoomsList as $nr): ?>
                 <tr id="elecrow-<?= $nr['room_id'] ?>">
                     <td><span class="room-pill"><?= htmlspecialchars($nr['room_number']) ?></span></td>
                     <td>
@@ -361,6 +353,7 @@ include 'includes/header.php';
                             <input type="hidden" name="cycle_id" value="<?= htmlspecialchars($cycle_id) ?>">
                             <input type="hidden" name="ajax"     value="1">
                             <input type="number" name="elec_curr" class="curr-input"
+                                   value="<?= $nr['curr_val'] !== null ? htmlspecialchars($nr['curr_val']) : '' ?>"
                                    placeholder="0" min="0" step="1" inputmode="numeric" required>
                             <button type="submit" class="btn-save">
                                 <i class="bi bi-check2"></i> บันทึก
@@ -391,11 +384,29 @@ async function saveElec(form, event) {
         if (data.ok) {
             const row = form.closest('tr');
             const nextInput = row.nextElementSibling?.querySelector('input[name="elec_curr"]');
-            row.style.transition = 'opacity 0.5s';
-            row.style.background = '#fffbeb';
-            row.cells[2].innerHTML = '<span style="color:#d97706;font-weight:600;font-size:.88rem;"><i class="bi bi-check-circle-fill me-1"></i>บันทึกแล้ว</span>';
-            setTimeout(() => { row.style.opacity = '0'; }, 700);
-            setTimeout(() => { row.remove(); }, 1200);
+            
+            // เปลี่ยนปุ่มเป็นสถานะสำเร็จชั่วคราว
+            btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> สำเร็จ';
+            btn.style.background = '#10b981';
+            btn.style.borderColor = '#10b981';
+            
+            setTimeout(() => { 
+                btn.innerHTML = orig; 
+                btn.style.background = '';
+                btn.style.borderColor = '';
+                btn.disabled = false;
+            }, 1500);
+            
+            // อัปเดตตัวเลข stat ทันที (พยายามปรับโดยประมาณ)
+            const countElem = document.querySelector('.sc-num'); // element แรกคือ "ยังไม่ได้กรอก"
+            const enteredElem = document.querySelectorAll('.sc-num')[1]; // element ที่สองคือ "กรอกแล้ว"
+            if (orig.indexOf('บันทึก') !== -1 && btn.closest('form').querySelector('input[name="elec_curr"]').defaultValue === '') {
+                // อัปเดตตัวเลขแค่กรณีที่ไม่เคยมีค่ามาก่อน
+                if (countElem) countElem.innerText = Math.max(0, parseInt(countElem.innerText) - 1);
+                if (enteredElem) enteredElem.innerText = parseInt(enteredElem.innerText) + 1;
+                btn.closest('form').querySelector('input[name="elec_curr"]').defaultValue = 'entered';
+            }
+
             if (nextInput) setTimeout(() => { nextInput.focus(); nextInput.select(); }, 100);
         } else {
             btn.disabled = false;
