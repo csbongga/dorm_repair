@@ -166,9 +166,7 @@ include 'includes/header.php';
                         
                         // สถานะ
                         $statusText = $row['status'];
-                        if (!empty($row['status_note'])) {
-                            $statusText .= " ({$row['status_note']})";
-                        }
+                        $statusNote = $row['status_note'];
                     ?>
                     <tr>
                         <td class="text-center fw-bold">
@@ -205,6 +203,12 @@ include 'includes/header.php';
                                 <span class="badge" style="background:#f1f5f9;color:#64748b;font-weight:normal;"><?= htmlspecialchars($statusText) ?></span>
                             <?php else: ?>
                                 <span class="badge" style="background:#fef2f2;color:#ef4444;font-weight:normal;"><?= htmlspecialchars($statusText) ?></span>
+                            <?php endif; ?>
+                            
+                            <?php if (!empty($statusNote)): ?>
+                            <div style="font-size:0.75rem;color:#ef4444;margin-top:4px;white-space:nowrap;">
+                                <i class="bi bi-info-circle me-1"></i><?= htmlspecialchars($statusNote) ?>
+                            </div>
                             <?php endif; ?>
                         </td>
                     </tr>
