@@ -107,6 +107,18 @@ if ($cycle_id) {
     $cc = $pdo->prepare("SELECT COUNT(*) FROM bill_meters WHERE cycle_id = ? AND payment_status = 'confirmed'");
     $cc->execute([$cycle_id]);
     $confirmedCount = (int)$cc->fetchColumn();
+
+    $uncc = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM bill_meters bm
+        JOIN rooms r ON bm.room_id = r.id
+        WHERE bm.cycle_id = ? 
+          AND bm.water_status = 'verified'
+          AND (bm.payment_status IS NULL OR bm.payment_status NOT IN ('pending', 'confirmed'))
+          AND r.status = 'พร้อมใช้งาน'
+    ");
+    $uncc->execute([$cycle_id]);
+    $unnotifiedCount = (int)$uncc->fetchColumn();
 }
 
 function shortDate(?string $dt): string {
@@ -366,24 +378,13 @@ include 'includes/header.php';
             <div class="sc-lbl">ยืนยันแล้ว</div>
         </div>
     </div>
-    <?php if ($rateWater > 0): ?>
     <div class="stat-chip">
-        <div class="sc-icon" style="background:#f0fbff;color:#0ea5e9;"><i class="bi bi-droplet-fill"></i></div>
+        <div class="sc-icon" style="background:#fef2f2;color:#ef4444;"><i class="bi bi-exclamation-circle-fill"></i></div>
         <div>
-            <div class="sc-num">฿<?= number_format($rateWater, 0) ?></div>
-            <div class="sc-lbl">บาท/หน่วยน้ำ</div>
+            <div class="sc-num"><?= $unnotifiedCount ?? 0 ?></div>
+            <div class="sc-lbl">ยังไม่แจ้งชำระ (พร้อมใช้งาน)</div>
         </div>
     </div>
-    <?php endif; ?>
-    <?php if ($rateElec > 0): ?>
-    <div class="stat-chip">
-        <div class="sc-icon" style="background:#fffbeb;color:#f59e0b;"><i class="bi bi-lightning-charge-fill"></i></div>
-        <div>
-            <div class="sc-num">฿<?= number_format($rateElec, 0) ?></div>
-            <div class="sc-lbl">บาท/หน่วยไฟ</div>
-        </div>
-    </div>
-    <?php endif; ?>
 </div>
 
 <?php if (!$cycle_id): ?>
