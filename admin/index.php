@@ -108,6 +108,15 @@ if ($cycle_id) {
           AND EXISTS (SELECT 1 FROM students s WHERE s.room_id = r.id)
     ");
     $mu->execute([$cycle_id]); $meterUnpaid = (int)$mu->fetchColumn();
+
+    $mtot = $pdo->prepare("
+        SELECT COUNT(bm.id)
+        FROM bill_meters bm
+        JOIN rooms r ON r.id = bm.room_id
+        WHERE bm.cycle_id = ?
+          AND EXISTS (SELECT 1 FROM students s WHERE s.room_id = r.id)
+    ");
+    $mtot->execute([$cycle_id]); $meterTotalOcc = (int)$mtot->fetchColumn();
 }
 
 $extra_head = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>';
@@ -163,7 +172,9 @@ $rate = $stats['total'] > 0 ? round($stats['completed'] / $stats['total'] * 100)
             <div class="stat-icon" style="background:#fff1f2; color:#e11d48;">
                 <i class="bi bi-exclamation-circle-fill"></i>
             </div>
-            <div class="stat-value" style="color:#e11d48;"><?= $meterUnpaid ?></div>
+            <div class="stat-value" style="color:#e11d48;">
+                <?= $meterUnpaid ?> <span style="font-size:0.8rem;color:#94a3b8;font-weight:500;">/ <?= $meterTotalOcc ?></span>
+            </div>
             <div class="stat-label">ห้องที่ค้างชำระ</div>
         </a>
     </div>
