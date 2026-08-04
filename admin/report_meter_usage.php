@@ -196,7 +196,7 @@ include 'includes/header.php';
                         $statusText = $row['status'];
                         $statusNote = $row['status_note'];
                         
-                        $isUnsubmitted = ($w_curr === null || $e_curr === null) ? 1 : 0;
+                        $isUnsubmitted = ($w_curr === null && $e_curr !== null) ? 1 : 0;
                     ?>
                     <tr class="usage-row" data-status="<?= htmlspecialchars($statusText) ?>" data-unsubmitted="<?= $isUnsubmitted ?>">
                         <td class="text-center fw-bold">

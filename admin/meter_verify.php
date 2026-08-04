@@ -204,7 +204,10 @@ if ($cycle_id) {
                     WHERE bm_cur.room_id = r.id AND bm_cur.cycle_id = :cid2 AND bm_cur.water_status = 'verified') AS curr_val,
                    (SELECT bm_cur.water_photo 
                     FROM bill_meters bm_cur 
-                    WHERE bm_cur.room_id = r.id AND bm_cur.cycle_id = :cid4 AND bm_cur.water_status = 'verified') AS water_photo
+                    WHERE bm_cur.room_id = r.id AND bm_cur.cycle_id = :cid4 AND bm_cur.water_status = 'verified') AS water_photo,
+                   (SELECT bm_cur.elec_curr 
+                    FROM bill_meters bm_cur 
+                    WHERE bm_cur.room_id = r.id AND bm_cur.cycle_id = :cid5) AS elec_curr
             FROM rooms r
             LEFT JOIN students s ON s.room_id = r.id
             WHERE r.id NOT IN (
@@ -220,6 +223,7 @@ if ($cycle_id) {
             'cid2'    => $cycle_id,
             'cid3'    => $cycle_id,
             'cid4'    => $cycle_id,
+            'cid5'    => $cycle_id,
             'fdorm_c' => $filter_dorm,
             'fdorm_v' => $filter_dorm,
             'ffloor_c' => $filter_floor ?: '0',
@@ -230,7 +234,7 @@ if ($cycle_id) {
         foreach ($allRoomsList as $rm) {
             if ($rm['curr_val'] === null) {
                 $pendingCount++;
-                if ($rm['status'] === 'พร้อมใช้งาน') {
+                if ($rm['status'] === 'พร้อมใช้งาน' && $rm['elec_curr'] !== null) {
                     $unsubmittedReadyCount++;
                 }
             }
