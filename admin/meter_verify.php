@@ -848,6 +848,17 @@ include 'includes/header.php';
 <?php
 $extra_scripts = <<<'JS'
 <script>
+document.addEventListener("DOMContentLoaded", function() { 
+    var scrollpos = sessionStorage.getItem('scrollpos_meter_verify');
+    if (scrollpos) {
+        window.scrollTo(0, scrollpos);
+        sessionStorage.removeItem('scrollpos_meter_verify');
+    }
+});
+window.addEventListener("beforeunload", function () {
+    sessionStorage.setItem('scrollpos_meter_verify', window.scrollY);
+});
+
 function confirmVerify(id, room, currVal, photoUrl) {
     const photoHtml = photoUrl
         ? `<div style="margin-bottom:14px;">
