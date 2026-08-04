@@ -96,8 +96,8 @@ if ($cycle_id) {
     $mp = $pdo->prepare("SELECT COUNT(*) FROM bill_meters WHERE cycle_id = ? AND water_status = 'review'");
     $mp->execute([$cycle_id]); $meterPending = (int)$mp->fetchColumn();
 
-    $mv = $pdo->prepare("SELECT COUNT(*) FROM bill_meters WHERE cycle_id = ? AND water_status = 'verified'");
-    $mv->execute([$cycle_id]); $meterVerified = (int)$mv->fetchColumn();
+    $mpay = $pdo->prepare("SELECT COUNT(*) FROM bill_meters WHERE cycle_id = ? AND payment_status = 'pending'");
+    $mpay->execute([$cycle_id]); $paymentPending = (int)$mpay->fetchColumn();
 
     $mn = $pdo->query("SELECT COUNT(*) FROM rooms")->fetchColumn();
     $ms = $pdo->prepare("SELECT COUNT(DISTINCT room_id) FROM bill_meters WHERE cycle_id = ?");
@@ -187,12 +187,12 @@ $rate = $stats['total'] > 0 ? round($stats['completed'] / $stats['total'] * 100)
         </a>
     </div>
     <div class="col-6 col-md-3">
-        <a href="meter_verify.php" class="stat-card d-block text-decoration-none">
+        <a href="payment_verify.php" class="stat-card d-block text-decoration-none">
             <div class="stat-icon" style="background:#ccfbf1; color:#0d9488;">
-                <i class="bi bi-check-circle-fill"></i>
+                <i class="bi bi-wallet2"></i>
             </div>
-            <div class="stat-value" style="color:#0d9488;"><?= $meterVerified ?></div>
-            <div class="stat-label">ยืนยันแล้ว</div>
+            <div class="stat-value" style="color:#0d9488;"><?= $paymentPending ?></div>
+            <div class="stat-label">รอยืนยันการชำระเงิน</div>
         </a>
     </div>
     <div class="col-6 col-md-3">
