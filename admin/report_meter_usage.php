@@ -28,7 +28,9 @@ $dorms = $pdo->query("SELECT id, name FROM dorms ORDER BY name ASC")->fetchAll()
 $sql = "
     SELECT r.id AS room_id, r.room_number, r.status, r.status_note, d.name AS dorm_name,
            bm.water_prev, bm.water_curr, bm.water_amt,
-           bm.elec_prev, bm.elec_curr, bm.elec_amt
+           bm.elec_prev, bm.elec_curr, bm.elec_amt,
+           (SELECT COUNT(*) FROM students s WHERE s.room_id = r.id) AS student_count,
+           (SELECT GROUP_CONCAT(CONCAT(s.name, '|', IFNULL(s.phone, 'ไม่มีเบอร์')) SEPARATOR '||') FROM students s WHERE s.room_id = r.id) AS student_details
     FROM rooms r
     JOIN dorms d ON r.dorm_id = d.id
     LEFT JOIN bill_meters bm ON r.id = bm.room_id AND bm.cycle_id = :cid
@@ -127,6 +129,7 @@ include 'includes/header.php';
                     <th rowspan="2" class="text-center">เลขห้อง</th>
                     <th colspan="4" class="text-center col-water" style="border-left: 2px solid #e2e8f0;">น้ำประปา</th>
                     <th colspan="4" class="text-center col-elec" style="border-left: 2px solid #e2e8f0; border-right: 2px solid #e2e8f0;">ไฟฟ้า</th>
+                    <th rowspan="2" class="text-center">จำนวนผู้เข้าพัก</th>
                     <th rowspan="2" class="text-center">หมายเหตุ (สถานะห้อง)</th>
                 </tr>
                 <tr>
@@ -186,6 +189,16 @@ include 'includes/header.php';
                         <td class="val-number col-elec" style="color:#059669; border-right: 2px solid #e2e8f0;"><?= $e_amt !== null ? number_format($e_amt, 2) : '-' ?></td>
                         
                         <td class="text-center">
+                            <?php if ($row['student_count'] > 0): ?>
+                                <a href="#" onclick="showStudents(event, '<?= htmlspecialchars($row['student_details'], ENT_QUOTES) ?>', '<?= htmlspecialchars($row['room_number'], ENT_QUOTES) ?>')" class="badge text-decoration-none" style="background:#dbeafe;color:#1d4ed8;font-size:0.85rem;padding:6px 10px;">
+                                    <i class="bi bi-person-fill me-1"></i><?= $row['student_count'] ?>
+                                </a>
+                            <?php else: ?>
+                                <span style="font-size:0.85rem;color:#cbd5e1;">—</span>
+                            <?php endif; ?>
+                        </td>
+
+                        <td class="text-center">
                             <?php if ($row['status'] === 'พร้อมใช้งาน'): ?>
                                 <span class="badge" style="background:#f0fdf4;color:#16a34a;font-weight:normal;"><?= htmlspecialchars($statusText) ?></span>
                             <?php elseif (in_array($row['status'], ['ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์'])): ?>
@@ -202,4 +215,37 @@ include 'includes/header.php';
     </div>
 </div>
 
-<?php include 'includes/footer.php'; ?>
+<?php
+$extra_scripts = <<<'JS'
+<script>
+function showStudents(e, details, room) {
+    e.preventDefault();
+    if (!details) return;
+    
+    let html = '<ul style="list-style:none; padding:0; margin:0; text-align:left;">';
+    details.split('||').forEach(student => {
+        let parts = student.split('|');
+        html += `<li style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
+                    <div style="font-weight:600; color:#1e293b; font-size:1rem;">
+                        <i class="bi bi-person-circle me-2 text-primary"></i>${parts[0]}
+                    </div>
+                    <div style="font-size:0.85rem; color:#64748b; margin-top:6px; margin-left: 24px;">
+                        <i class="bi bi-telephone-fill me-2"></i>${parts[1]}
+                    </div>
+                 </li>`;
+    });
+    html += '</ul>';
+    
+    Swal.fire({
+        title: `ผู้เข้าพักห้อง ${room}`,
+        html: html,
+        confirmButtonText: 'ปิด',
+        confirmButtonColor: '#0ea5e9',
+        width: '400px'
+    });
+}
+</script>
+JS;
+
+include 'includes/footer.php';
+?>
