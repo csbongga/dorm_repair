@@ -382,7 +382,7 @@ include 'includes/header.php';
         <span style="font-size:0.82rem;color:#94a3b8;"><?= count($rooms) ?> ห้อง</span>
     </div>
     <div class="table-responsive">
-        <table class="table table-clean mb-0">
+        <table class="table table-clean table-hover mb-0">
             <thead>
                 <tr>
                     <th style="padding-left:20px;">หมายเลขห้อง</th>
@@ -722,6 +722,17 @@ include 'includes/header.php';
 <?php
 $extra_scripts = <<<'JS'
 <script>
+document.addEventListener("DOMContentLoaded", function() { 
+    var scrollpos = sessionStorage.getItem('scrollpos_dorms');
+    if (scrollpos) {
+        window.scrollTo(0, scrollpos);
+        sessionStorage.removeItem('scrollpos_dorms');
+    }
+});
+window.addEventListener("beforeunload", function () {
+    sessionStorage.setItem('scrollpos_dorms', window.scrollY);
+});
+
 function openAddDormModal() {
     new bootstrap.Modal(document.getElementById('addDormModal')).show();
 }
