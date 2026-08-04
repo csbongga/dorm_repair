@@ -341,8 +341,10 @@ include 'includes/header.php';
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($allRoomsList as $nr): ?>
-                <tr id="elecrow-<?= $nr['room_id'] ?>">
+            <?php foreach ($allRoomsList as $nr): 
+                $isStatusIssue = ($nr['status'] !== 'พร้อมใช้งาน' || !empty($nr['status_note'])) ? 1 : 0;
+            ?>
+                <tr id="elecrow-<?= $nr['room_id'] ?>" data-status-issue="<?= $isStatusIssue ?>">
                     <td>
                         <div style="display:inline-flex; align-items:center; gap:8px;">
                             <span class="room-pill"><?= htmlspecialchars($nr['room_number']) ?></span>
@@ -418,7 +420,8 @@ function calcCost(input, prev, rate) {
         row.style.background = '';
         row.classList.remove('has-issue');
         if (typeof showingOnlyIssues !== 'undefined' && showingOnlyIssues) {
-            row.style.display = 'none';
+            const hasStatusIssue = row.getAttribute('data-status-issue') === '1';
+            row.style.display = hasStatusIssue ? '' : 'none';
         }
     }
 }
@@ -439,7 +442,8 @@ function toggleIssues() {
     
     document.querySelectorAll('.enter-table tbody tr').forEach(tr => {
         if (showingOnlyIssues) {
-            tr.style.display = tr.classList.contains('has-issue') ? '' : 'none';
+            const hasStatusIssue = tr.getAttribute('data-status-issue') === '1';
+            tr.style.display = (tr.classList.contains('has-issue') || hasStatusIssue) ? '' : 'none';
         } else {
             tr.style.display = '';
         }
