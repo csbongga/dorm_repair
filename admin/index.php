@@ -168,7 +168,7 @@ $rate = $stats['total'] > 0 ? round($stats['completed'] / $stats['total'] * 100)
         </a>
     </div>
     <div class="col-6 col-md-3">
-        <a href="report_bills.php" class="stat-card d-block text-decoration-none">
+        <a href="payment_verify.php" class="stat-card d-block text-decoration-none">
             <div class="stat-icon" style="background:#fff1f2; color:#e11d48;">
                 <i class="bi bi-exclamation-circle-fill"></i>
             </div>
