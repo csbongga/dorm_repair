@@ -477,6 +477,9 @@
         <a href="report_bills.php" class="nav-item <?= ($current_page ?? '') === 'report_bills' ? 'active' : '' ?>">
             <i class="bi bi-file-earmark-medical-fill"></i> สรุปค่าน้ำค่าไฟ
         </a>
+        <a href="report_meter_usage.php" class="nav-item <?= ($current_page ?? '') === 'report_meter_usage' ? 'active' : '' ?>">
+            <i class="bi bi-table"></i> ตารางการใช้น้ำ/ไฟ
+        </a>
 
         <div class="sidebar-section-label">ตั้งค่า</div>
         <a href="bill_settings.php" class="nav-item <?= ($current_page ?? '') === 'bill_settings' ? 'active' : '' ?>">
