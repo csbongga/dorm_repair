@@ -430,7 +430,7 @@ include 'includes/header.php';
                         <span class="badge" style="background:<?= $statusColor[0] ?>;color:<?= $statusColor[1] ?>;font-size:0.78rem;border-radius:8px;font-weight:500;">
                             <?= htmlspecialchars($room['status']) ?>
                         </span>
-                        <?php if ($room['status'] === 'ห้องชำรุด' && !empty($room['status_note'])): ?>
+                        <?php if (!empty($room['status_note'])): ?>
                         <div style="font-size:0.75rem;color:#ef4444;margin-top:4px;">
                             <i class="bi bi-info-circle me-1"></i><?= htmlspecialchars($room['status_note']) ?>
                         </div>
@@ -685,15 +685,15 @@ include 'includes/header.php';
                     </div>
                     <div class="mb-3">
                         <label class="form-label" style="font-size:0.85rem;font-weight:500;">สถานะห้อง</label>
-                        <select name="status" id="editRoomStatus" class="form-select form-select-sm" onchange="toggleStatusNote()">
+                        <select name="status" id="editRoomStatus" class="form-select form-select-sm">
                             <?php foreach ($roomStatuses as $rs): ?>
                             <option value="<?= $rs ?>"><?= $rs ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="mb-3" id="statusNoteGroup" style="display:none;">
-                        <label class="form-label" style="font-size:0.85rem;font-weight:500;">หมายเหตุ (กรณีชำรุด)</label>
-                        <input type="text" name="status_note" id="editRoomStatusNote" class="form-control form-control-sm" placeholder="เช่น แอร์เสีย, น้ำรั่ว">
+                    <div class="mb-3" id="statusNoteGroup">
+                        <label class="form-label" style="font-size:0.85rem;font-weight:500;">หมายเหตุเพิ่มเติม</label>
+                        <input type="text" name="status_note" id="editRoomStatusNote" class="form-control form-control-sm" placeholder="ระบุเหตุผล (ถ้ามี)">
                     </div>
                     <div class="mb-1">
                         <label class="form-label" style="font-size:0.85rem;font-weight:500;">
@@ -767,17 +767,7 @@ function openEditRoomModal(room) {
     document.getElementById('editRoomStatusNote').value = room.status_note ?? '';
     document.getElementById('editRoomDorm').value      = room.dorm_name;
     document.getElementById('editRoomWaterInit').value = room.water_meter_init ?? '';
-    toggleStatusNote();
     new bootstrap.Modal(document.getElementById('editRoomModal')).show();
-}
-
-function toggleStatusNote() {
-    const st = document.getElementById('editRoomStatus').value;
-    if (st === 'ห้องชำรุด') {
-        document.getElementById('statusNoteGroup').style.display = 'block';
-    } else {
-        document.getElementById('statusNoteGroup').style.display = 'none';
-    }
 }
 
 function updateBatchPreview() {
