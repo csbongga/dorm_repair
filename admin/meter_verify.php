@@ -506,7 +506,7 @@ $extra_head = <<<'CSS'
     border: 1.5px solid #e2e8f0; border-radius: 8px;
     padding: 7px 12px; font-size: 0.9rem;
     font-family: 'Kanit', sans-serif; color: #1e293b;
-    width: 130px; background: #f8fafc;
+    width: 90px; background: #f8fafc;
     transition: border-color .2s, box-shadow .2s;
     outline: none;
 }
@@ -832,7 +832,7 @@ include 'includes/header.php';
                                    placeholder="0" min="0" step="1" inputmode="numeric" required
                                    oninput="calcCost(this, <?= $nr['water_prev'] !== null ? (int)$nr['water_prev'] : 0 ?>, <?= $rateWater ?>)">
                             <button type="submit" class="btn-admin-save">
-                                <i class="bi bi-check2"></i> บันทึก
+                                บันทึก
                             </button>
                             <div class="cost-preview" style="font-size:0.85rem;color:#64748b;margin-left:4px;min-width:100px;">
                                 <?php if ($nr['curr_val'] !== null && $nr['water_prev'] !== null && $nr['curr_val'] >= $nr['water_prev']): ?>
