@@ -98,7 +98,7 @@ include 'includes/header.php';
         <div class="card border-0 shadow-sm" style="border-radius:12px;">
             <div class="card-body p-3">
                 <form method="GET" class="row g-3 align-items-end">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label" style="font-size:0.85rem;color:#64748b;">เลือกรอบบิล</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light border-end-0"><i class="bi bi-calendar-check text-muted"></i></span>
@@ -112,7 +112,7 @@ include 'includes/header.php';
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label" style="font-size:0.85rem;color:#64748b;">เลือกหอพัก</label>
                         <select name="dorm_id" class="form-select" onchange="this.form.submit()">
                             <option value="">-- ทุกหอพัก --</option>
@@ -123,7 +123,7 @@ include 'includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label" style="font-size:0.85rem;color:#64748b;">เลือกชั้น</label>
                         <select name="floor" class="form-select" onchange="this.form.submit()">
                             <option value="">-- ทุกชั้น --</option>
@@ -133,6 +133,12 @@ include 'includes/header.php';
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                        <button type="button" id="btnToggleUnsubmitted" class="btn w-100" style="background:#fffbeb;color:#d97706;border:1px solid #fcd34d;" onclick="toggleUnsubmitted()">
+                            <i class="bi bi-exclamation-circle-fill"></i> แสดงเฉพาะยังไม่ส่ง
+                        </button>
                     </div>
                 </form>
             </div>
@@ -189,8 +195,10 @@ include 'includes/header.php';
                         // สถานะ
                         $statusText = $row['status'];
                         $statusNote = $row['status_note'];
+                        
+                        $isUnsubmitted = ($w_curr === null || $e_curr === null) ? 1 : 0;
                     ?>
-                    <tr>
+                    <tr class="usage-row" data-status="<?= htmlspecialchars($statusText) ?>" data-unsubmitted="<?= $isUnsubmitted ?>">
                         <td class="text-center fw-bold">
                             <?= htmlspecialchars($row['room_number']) ?><br>
                             <span style="font-size:0.7rem;color:#94a3b8;font-weight:normal;"><?= htmlspecialchars($row['dorm_name']) ?></span>
@@ -268,6 +276,38 @@ function showStudents(e, details, room) {
         confirmButtonText: 'ปิด',
         confirmButtonColor: '#0ea5e9',
         width: '400px'
+    });
+}
+
+let showingOnlyUnsubmitted = false;
+function toggleUnsubmitted() {
+    showingOnlyUnsubmitted = !showingOnlyUnsubmitted;
+    const btn = document.getElementById('btnToggleUnsubmitted');
+    
+    if (showingOnlyUnsubmitted) {
+        btn.style.background = '#fef2f2';
+        btn.style.color = '#ef4444';
+        btn.style.border = '1px solid #fca5a5';
+        btn.innerHTML = '<i class="bi bi-card-list"></i> แสดงทั้งหมด';
+    } else {
+        btn.style.background = '#fffbeb';
+        btn.style.color = '#d97706';
+        btn.style.border = '1px solid #fcd34d';
+        btn.innerHTML = '<i class="bi bi-exclamation-circle-fill"></i> แสดงเฉพาะยังไม่ส่ง';
+    }
+    
+    document.querySelectorAll('.table-usage tbody tr.usage-row').forEach(tr => {
+        if (showingOnlyUnsubmitted) {
+            const isUnsubmitted = tr.getAttribute('data-unsubmitted') === '1';
+            const status = tr.getAttribute('data-status');
+            if (isUnsubmitted && status === 'พร้อมใช้งาน') {
+                tr.style.display = '';
+            } else {
+                tr.style.display = 'none';
+            }
+        } else {
+            tr.style.display = '';
+        }
     });
 }
 </script>
