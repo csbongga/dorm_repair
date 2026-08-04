@@ -627,7 +627,7 @@ include 'includes/header.php';
         <div class="sc-icon" style="background:#fffbeb;color:#d97706;"><i class="bi bi-clock-history"></i></div>
         <div>
             <div class="sc-num"><?= $unsubmittedReadyCount ?? 0 ?></div>
-            <div class="sc-lbl">ยังไม่ส่ง (พร้อมใช้งาน)</div>
+            <div class="sc-lbl">ยังไม่ส่ง</div>
         </div>
     </div>
 </div>

@@ -382,7 +382,7 @@ include 'includes/header.php';
         <div class="sc-icon" style="background:#fef2f2;color:#ef4444;"><i class="bi bi-exclamation-circle-fill"></i></div>
         <div>
             <div class="sc-num"><?= $unnotifiedCount ?? 0 ?></div>
-            <div class="sc-lbl">ยังไม่แจ้งชำระ (พร้อมใช้งาน)</div>
+            <div class="sc-lbl">ยังไม่แจ้งชำระ</div>
         </div>
     </div>
 </div>
