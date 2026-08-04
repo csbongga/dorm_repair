@@ -101,7 +101,7 @@ if ($cycle_id) {
     // ดึงห้องทั้งหมดตามตัวกรอง
     try {
         $stmt = $pdo->prepare("
-            SELECT r.id AS room_id, r.room_number,
+            SELECT r.id AS room_id, r.room_number, r.status,
                    COALESCE(
                        (SELECT bm2.elec_curr
                         FROM bill_meters bm2
@@ -221,7 +221,7 @@ $extra_head = <<<'CSS'
 .curr-input {
     border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 7px 12px;
     font-size: 0.9rem; font-family: 'Kanit', sans-serif; color: #1e293b;
-    width: 130px; background: #f8fafc; outline: none;
+    width: 90px; background: #f8fafc; outline: none;
     transition: border-color .2s, box-shadow .2s;
 }
 .curr-input:focus {
@@ -343,7 +343,19 @@ include 'includes/header.php';
             <tbody>
             <?php foreach ($allRoomsList as $nr): ?>
                 <tr id="elecrow-<?= $nr['room_id'] ?>">
-                    <td><span class="room-pill"><?= htmlspecialchars($nr['room_number']) ?></span></td>
+                    <td>
+                        <div style="display:inline-flex; align-items:center; gap:8px;">
+                            <span class="room-pill"><?= htmlspecialchars($nr['room_number']) ?></span>
+                            <?php 
+                            $sText2 = $nr['status'] ?? 'พร้อมใช้งาน';
+                            if ($sText2 !== 'พร้อมใช้งาน'):
+                                $bg2 = in_array($sText2, ['ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์']) ? '#f1f5f9' : '#fef2f2';
+                                $col2 = in_array($sText2, ['ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์']) ? '#64748b' : '#ef4444';
+                            ?>
+                                <span class="badge" style="background:<?= $bg2 ?>;color:<?= $col2 ?>;font-weight:normal;"><?= htmlspecialchars($sText2) ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </td>
                     <td>
                         <?php if ($nr['elec_prev'] !== null): ?>
                             <span class="prev-chip"><?= number_format((float)$nr['elec_prev'], 0) ?></span>
@@ -361,7 +373,7 @@ include 'includes/header.php';
                                    placeholder="0" min="0" step="1" inputmode="numeric" required
                                    oninput="calcCost(this, <?= $nr['elec_prev'] !== null ? (int)$nr['elec_prev'] : 0 ?>, <?= $rateElec ?>)">
                             <button type="submit" class="btn-save">
-                                <i class="bi bi-check2"></i> บันทึก
+                                บันทึก
                             </button>
                             <div class="cost-preview" style="font-size:0.85rem;color:#64748b;margin-left:4px;min-width:100px;">
                                 <?php if ($nr['curr_val'] !== null && $nr['elec_prev'] !== null && $nr['curr_val'] >= $nr['elec_prev']): ?>
