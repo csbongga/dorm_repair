@@ -99,9 +99,15 @@ if ($cycle_id) {
     $mpay = $pdo->prepare("SELECT COUNT(*) FROM bill_meters WHERE cycle_id = ? AND payment_status = 'pending'");
     $mpay->execute([$cycle_id]); $paymentPending = (int)$mpay->fetchColumn();
 
-    $mn = $pdo->query("SELECT COUNT(*) FROM rooms")->fetchColumn();
-    $ms = $pdo->prepare("SELECT COUNT(DISTINCT room_id) FROM bill_meters WHERE cycle_id = ?");
-    $ms->execute([$cycle_id]); $meterNoData = max(0, (int)$mn - (int)$ms->fetchColumn());
+    $mu = $pdo->prepare("
+        SELECT COUNT(bm.id)
+        FROM bill_meters bm
+        JOIN rooms r ON r.id = bm.room_id
+        WHERE bm.cycle_id = ?
+          AND (bm.payment_status IS NULL OR bm.payment_status != 'confirmed')
+          AND EXISTS (SELECT 1 FROM students s WHERE s.room_id = r.id)
+    ");
+    $mu->execute([$cycle_id]); $meterUnpaid = (int)$mu->fetchColumn();
 }
 
 $extra_head = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>';
@@ -196,12 +202,12 @@ $rate = $stats['total'] > 0 ? round($stats['completed'] / $stats['total'] * 100)
         </a>
     </div>
     <div class="col-6 col-md-3">
-        <a href="meter_verify.php" class="stat-card d-block text-decoration-none">
-            <div class="stat-icon" style="background:#f1f5f9; color:#94a3b8;">
-                <i class="bi bi-dash-circle-fill"></i>
+        <a href="report_bills.php" class="stat-card d-block text-decoration-none">
+            <div class="stat-icon" style="background:#fff1f2; color:#e11d48;">
+                <i class="bi bi-exclamation-circle-fill"></i>
             </div>
-            <div class="stat-value text-secondary"><?= $meterNoData ?></div>
-            <div class="stat-label">ยังไม่มีข้อมูล</div>
+            <div class="stat-value" style="color:#e11d48;"><?= $meterUnpaid ?></div>
+            <div class="stat-label">ห้องที่ค้างชำระ</div>
         </a>
     </div>
     <div class="col-6 col-md-3">
