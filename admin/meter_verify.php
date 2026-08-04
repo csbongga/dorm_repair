@@ -784,7 +784,6 @@ include 'includes/header.php';
             <thead>
                 <tr>
                     <th>ห้อง</th>
-                    <th>สถานะ</th>
                     <th>เลขครั้งก่อน</th>
                     <th colspan="2">เลขปัจจุบัน</th>
                 </tr>
@@ -793,19 +792,22 @@ include 'includes/header.php';
             <?php foreach ($allRoomsList as $nr): ?>
                 <tr id="nmrow-<?= $nr['room_id'] ?>">
                     <td>
-                        <span class="room-pill"><?= htmlspecialchars($nr['room_number']) ?></span>
-                        <?php if (!empty($nr['water_photo'])): ?>
-                            <i class="bi bi-image" style="color:#0ea5e9; cursor:pointer; font-size:1.1rem; margin-left:8px;" 
-                               onclick="openPhoto('../<?= htmlspecialchars($nr['water_photo']) ?>')" title="ดูรูปภาพ"></i>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <?php
-                        $sText2 = $nr['status'];
-                        $bg2 = $sText2 === 'พร้อมใช้งาน' ? '#f0fdf4' : (in_array($sText2, ['ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์']) ? '#f1f5f9' : '#fef2f2');
-                        $col2 = $sText2 === 'พร้อมใช้งาน' ? '#16a34a' : (in_array($sText2, ['ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์']) ? '#64748b' : '#ef4444');
-                        ?>
-                        <span class="badge" style="background:<?= $bg2 ?>;color:<?= $col2 ?>;font-weight:normal;"><?= htmlspecialchars($sText2) ?></span>
+                        <div style="display:inline-flex; align-items:center; gap:8px;">
+                            <span class="room-pill"><?= htmlspecialchars($nr['room_number']) ?></span>
+                            <?php if (!empty($nr['water_photo'])): ?>
+                                <i class="bi bi-image" style="color:#0ea5e9; cursor:pointer; font-size:1.1rem;" 
+                                   onclick="openPhoto('../<?= htmlspecialchars($nr['water_photo']) ?>')" title="ดูรูปภาพ"></i>
+                            <?php endif; ?>
+                            
+                            <?php 
+                            $sText2 = $nr['status'];
+                            if ($sText2 !== 'พร้อมใช้งาน'):
+                                $bg2 = in_array($sText2, ['ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์']) ? '#f1f5f9' : '#fef2f2';
+                                $col2 = in_array($sText2, ['ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์']) ? '#64748b' : '#ef4444';
+                            ?>
+                                <span class="badge" style="background:<?= $bg2 ?>;color:<?= $col2 ?>;font-weight:normal;"><?= htmlspecialchars($sText2) ?></span>
+                            <?php endif; ?>
+                        </div>
                         <?php if (!empty($nr['status_note'])): ?>
                             <div style="font-size:0.75rem;color:#ef4444;margin-top:4px;white-space:nowrap;">
                                 <i class="bi bi-info-circle"></i> <?= htmlspecialchars($nr['status_note']) ?>
