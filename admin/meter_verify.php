@@ -226,8 +226,14 @@ if ($cycle_id) {
             'ffloor_v' => $filter_floor ?: '0',
         ]);
         $allRoomsList = $nmStmt->fetchAll();
+        $unsubmittedReadyCount = 0;
         foreach ($allRoomsList as $rm) {
-            if ($rm['curr_val'] === null) $pendingCount++;
+            if ($rm['curr_val'] === null) {
+                $pendingCount++;
+                if ($rm['status'] === 'พร้อมใช้งาน') {
+                    $unsubmittedReadyCount++;
+                }
+            }
         }
     } catch (PDOException $e) {
         $allRoomsList = [];
@@ -613,15 +619,13 @@ include 'includes/header.php';
             <div class="sc-lbl">ส่งมาทั้งหมด</div>
         </div>
     </div>
-    <?php if ($rateWater > 0): ?>
     <div class="stat-chip">
-        <div class="sc-icon" style="background:#f0fdfa;color:#0d9488;"><i class="bi bi-droplet-fill"></i></div>
+        <div class="sc-icon" style="background:#fffbeb;color:#d97706;"><i class="bi bi-clock-history"></i></div>
         <div>
-            <div class="sc-num">฿<?= rtrim(rtrim(number_format($rateWater, 2), '0'), '.') ?></div>
-            <div class="sc-lbl">บาท/หน่วย</div>
+            <div class="sc-num"><?= $unsubmittedReadyCount ?? 0 ?></div>
+            <div class="sc-lbl">ยังไม่ส่ง (พร้อมใช้งาน)</div>
         </div>
     </div>
-    <?php endif; ?>
 </div>
 
 <?php if (!$cycle_id): ?>
