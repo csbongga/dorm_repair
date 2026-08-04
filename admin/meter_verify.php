@@ -790,7 +790,7 @@ include 'includes/header.php';
             </thead>
             <tbody>
             <?php foreach ($allRoomsList as $nr): 
-                $isStatusIssue = ($nr['status'] !== 'พร้อมใช้งาน' || !empty($nr['status_note'])) ? 1 : 0;
+                $isStatusIssue = ($nr['status'] === 'พร้อมใช้งาน' && !empty($nr['status_note'])) ? 1 : 0;
             ?>
                 <tr id="nmrow-<?= $nr['room_id'] ?>" data-status-issue="<?= $isStatusIssue ?>">
                     <td>
