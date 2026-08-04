@@ -154,6 +154,7 @@ if ($cycle_id) {
                bm.water_curr, bm.water_photo,
                bm.water_submitted_at, bm.water_fine,
                r.room_number, r.id AS room_id, r.dorm_id,
+               r.status, r.status_note,
                d.name AS dorm_name,
                GROUP_CONCAT(CONCAT(s.name, IFNULL(CONCAT(' (', NULLIF(s.phone, ''), ')'), '')) SEPARATOR ', ') AS student_name
         FROM bill_meters bm
@@ -188,7 +189,7 @@ if ($cycle_id) {
     $pendingCount = 0;
     try {
         $nmStmt = $pdo->prepare("
-            SELECT r.id AS room_id, r.room_number,
+            SELECT r.id AS room_id, r.room_number, r.status, r.status_note,
                    GROUP_CONCAT(CONCAT(s.name, IFNULL(CONCAT(' (', NULLIF(s.phone, ''), ')'), '')) SEPARATOR ', ') AS student_name,
                    COALESCE(
                        (SELECT bm2.water_curr
@@ -666,6 +667,19 @@ include 'includes/header.php';
                 <div class="mc-name"><?= htmlspecialchars($m['student_name'] ?? 'ไม่ระบุชื่อ') ?></div>
                 <div class="mc-time">ส่งเมื่อ <?= shortDate($m['water_submitted_at']) ?></div>
             </div>
+            <div class="ms-auto text-end">
+                <?php
+                $sText = $m['status'];
+                $bg = $sText === 'พร้อมใช้งาน' ? '#f0fdf4' : (in_array($sText, ['ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์']) ? '#f1f5f9' : '#fef2f2');
+                $col = $sText === 'พร้อมใช้งาน' ? '#16a34a' : (in_array($sText, ['ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์']) ? '#64748b' : '#ef4444');
+                ?>
+                <span class="badge" style="background:<?= $bg ?>;color:<?= $col ?>;font-weight:normal;"><?= htmlspecialchars($sText) ?></span>
+                <?php if (!empty($m['status_note'])): ?>
+                    <div style="font-size:0.75rem;color:#ef4444;margin-top:4px;">
+                        <i class="bi bi-info-circle"></i> <?= htmlspecialchars($m['status_note']) ?>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
 
         <!-- body -->
@@ -770,6 +784,7 @@ include 'includes/header.php';
             <thead>
                 <tr>
                     <th>ห้อง</th>
+                    <th>สถานะ</th>
                     <th>เลขครั้งก่อน</th>
                     <th colspan="2">เลขปัจจุบัน</th>
                 </tr>
@@ -782,6 +797,19 @@ include 'includes/header.php';
                         <?php if (!empty($nr['water_photo'])): ?>
                             <i class="bi bi-image" style="color:#0ea5e9; cursor:pointer; font-size:1.1rem; margin-left:8px;" 
                                onclick="openPhoto('../<?= htmlspecialchars($nr['water_photo']) ?>')" title="ดูรูปภาพ"></i>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php
+                        $sText2 = $nr['status'];
+                        $bg2 = $sText2 === 'พร้อมใช้งาน' ? '#f0fdf4' : (in_array($sText2, ['ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์']) ? '#f1f5f9' : '#fef2f2');
+                        $col2 = $sText2 === 'พร้อมใช้งาน' ? '#16a34a' : (in_array($sText2, ['ห้องว่าง', 'ห้องสำรอง', 'ห้องอาจารย์']) ? '#64748b' : '#ef4444');
+                        ?>
+                        <span class="badge" style="background:<?= $bg2 ?>;color:<?= $col2 ?>;font-weight:normal;"><?= htmlspecialchars($sText2) ?></span>
+                        <?php if (!empty($nr['status_note'])): ?>
+                            <div style="font-size:0.75rem;color:#ef4444;margin-top:4px;white-space:nowrap;">
+                                <i class="bi bi-info-circle"></i> <?= htmlspecialchars($nr['status_note']) ?>
+                            </div>
                         <?php endif; ?>
                     </td>
                     <td>
