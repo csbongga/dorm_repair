@@ -130,49 +130,6 @@ function statusBadge($status) {
 $rate = $stats['total'] > 0 ? round($stats['completed'] / $stats['total'] * 100) : 0;
 ?>
 
-<!-- Section: งานซ่อม -->
-<div style="font-size:0.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">
-    <i class="bi bi-clipboard2-check-fill me-1"></i> งานซ่อม
-</div>
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <a href="repairs.php" class="stat-card d-block text-decoration-none">
-            <div class="stat-icon" style="background:#fef3c7; color:#f59e0b;">
-                <i class="bi bi-hourglass-split"></i>
-            </div>
-            <div class="stat-value text-warning"><?= number_format($stats['pending']) ?></div>
-            <div class="stat-label">รอดำเนินการ</div>
-        </a>
-    </div>
-    <div class="col-6 col-md-3">
-        <a href="repairs.php" class="stat-card d-block text-decoration-none">
-            <div class="stat-icon" style="background:#fee2e2; color:#dc2626;">
-                <i class="bi bi-gear-fill"></i>
-            </div>
-            <div class="stat-value text-danger"><?= number_format($stats['in_progress']) ?></div>
-            <div class="stat-label">กำลังดำเนินการ</div>
-        </a>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#d1fae5; color:#059669;">
-                <i class="bi bi-check-circle-fill"></i>
-            </div>
-            <div class="stat-value text-success"><?= number_format($stats['completed']) ?></div>
-            <div class="stat-label">เสร็จสิ้นแล้ว</div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#ecfdf5; color:#059669;">
-                <i class="bi bi-graph-up-arrow"></i>
-            </div>
-            <div class="stat-value text-success"><?= $rate ?>%</div>
-            <div class="stat-label">อัตราซ่อมสำเร็จ</div>
-        </div>
-    </div>
-</div>
-
 <!-- Section: ค่าน้ำ / ค่าไฟ -->
 <div style="font-size:0.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">
     <i class="bi bi-droplet-fill me-1"></i> ค่าน้ำ / ค่าไฟ
@@ -217,6 +174,49 @@ $rate = $stats['total'] > 0 ? round($stats['completed'] / $stats['total'] * 100)
             </div>
             <div class="stat-value" style="color:#06C755;"><?= number_format($studentCount) ?></div>
             <div class="stat-label">นักศึกษาลงทะเบียน</div>
+        </div>
+    </div>
+</div>
+
+<!-- Section: งานซ่อม -->
+<div style="font-size:0.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">
+    <i class="bi bi-clipboard2-check-fill me-1"></i> งานซ่อม
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <a href="repairs.php" class="stat-card d-block text-decoration-none">
+            <div class="stat-icon" style="background:#fef3c7; color:#f59e0b;">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div class="stat-value text-warning"><?= number_format($stats['pending']) ?></div>
+            <div class="stat-label">รอดำเนินการ</div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="repairs.php" class="stat-card d-block text-decoration-none">
+            <div class="stat-icon" style="background:#fee2e2; color:#dc2626;">
+                <i class="bi bi-gear-fill"></i>
+            </div>
+            <div class="stat-value text-danger"><?= number_format($stats['in_progress']) ?></div>
+            <div class="stat-label">กำลังดำเนินการ</div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#d1fae5; color:#059669;">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div class="stat-value text-success"><?= number_format($stats['completed']) ?></div>
+            <div class="stat-label">เสร็จสิ้นแล้ว</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#ecfdf5; color:#059669;">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <div class="stat-value text-success"><?= $rate ?>%</div>
+            <div class="stat-label">อัตราซ่อมสำเร็จ</div>
         </div>
     </div>
 </div>
