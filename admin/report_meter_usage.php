@@ -21,8 +21,10 @@ if (empty($cycle_id)) {
 
 // หอพักที่เลือก (สำหรับ filter เพิ่มเติมถ้ามี - ตอนนี้ดึงทั้งหมด)
 $filter_dorm = $_GET['dorm_id'] ?? '';
+$filter_floor = $_GET['floor'] ?? '';
 
 $dorms = $pdo->query("SELECT id, name FROM dorms ORDER BY name ASC")->fetchAll();
+$db_floors = $pdo->query("SELECT DISTINCT floor FROM rooms WHERE floor IS NOT NULL ORDER BY floor ASC")->fetchAll(PDO::FETCH_COLUMN);
 
 // ดึงข้อมูลการใช้งานน้ำและไฟของแต่ละห้อง
 $sql = "
@@ -37,9 +39,18 @@ $sql = "
 ";
 $params = ['cid' => $cycle_id];
 
+$where = [];
 if (!empty($filter_dorm)) {
-    $sql .= " WHERE r.dorm_id = :did";
+    $where[] = "r.dorm_id = :did";
     $params['did'] = $filter_dorm;
+}
+if (!empty($filter_floor)) {
+    $where[] = "r.floor = :floor";
+    $params['floor'] = $filter_floor;
+}
+
+if (!empty($where)) {
+    $sql .= " WHERE " . implode(" AND ", $where);
 }
 
 $sql .= " ORDER BY d.id ASC, r.floor ASC, r.room_number ASC";
@@ -108,6 +119,17 @@ include 'includes/header.php';
                             <?php foreach ($dorms as $d): ?>
                                 <option value="<?= $d['id'] ?>" <?= $filter_dorm == $d['id'] ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($d['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" style="font-size:0.85rem;color:#64748b;">เลือกชั้น</label>
+                        <select name="floor" class="form-select" onchange="this.form.submit()">
+                            <option value="">-- ทุกชั้น --</option>
+                            <?php foreach ($db_floors as $f): ?>
+                                <option value="<?= $f ?>" <?= $filter_floor == $f ? 'selected' : '' ?>>
+                                    ชั้น <?= htmlspecialchars($f) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
